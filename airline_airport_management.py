@@ -1,7 +1,7 @@
 from database import get_connection
 from rich.console import Console
-
 console = Console()
+
 
 def heading(title):
     print()

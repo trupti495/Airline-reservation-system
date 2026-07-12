@@ -3,7 +3,7 @@ from rich.console import Console
 from rich.table import Table
 from colorama import Fore, Style, init
 
-console = Console()
+console = Console() #object
 def heading(title):
     print()
     console.rule(

@@ -1,4 +1,5 @@
 from database import get_connection
+import sqlite3
 from rich.console import Console
 from colorama import Fore, init
 from tabulate import tabulate
@@ -38,6 +39,8 @@ def add_flight():
     departure_time = input("Enter Departure Time (HH:MM): ")
     fare = float(input("Enter Fare: "))
     available_seats = int(input("Enter Available Seats: "))
+    print(airline_id, source_airport_id, destination_airport_id)
+
     try: 
         cursor.execute("""
             INSERT INTO flights
@@ -57,10 +60,12 @@ def add_flight():
         conn.commit()
     
         print(Fore.GREEN + "Flight added successfully!")
-    except Exception :
+    except sqlite3.IntegrityError:
         print(Fore.RED + "Foreign Key Constraint Error!")
+
     finally:
         conn.close()    
+
 def view_all_flights():
     conn = get_connection()
     cursor = conn.cursor()
@@ -73,7 +78,7 @@ def view_all_flights():
         conn.close()
         return
 
-    print("\n==================== ALL FLIGHTS ====================")
+        print("\n==================== ALL FLIGHTS ====================")
     print(f"Total Flights : {len(flights)}")
     print("-" * 95)
 
@@ -93,14 +98,16 @@ def view_all_flights():
         )
 
     print("-" * 95)
-    conn.close()
+    conn.close()                       
+
 def view_available_flights():
+    
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM flights WHERE available_seats > 0")
     flights = cursor.fetchall()
-
+    
     if not flights:
         print("\nNo Available Flights.")
         conn.close()
@@ -136,13 +143,30 @@ def search_by_flight_id():
     cursor.execute("SELECT * FROM flights WHERE flight_id = ?", (flight_id,))
     flight = cursor.fetchone()
 
-    if flight:
-        print(Fore.GREEN + "Flight Found:")
-        print(flight)
-    else:
+    if not flight:
         print(Fore.RED + "Flight not found.")
+        conn.close()
+        return
 
-    conn.close()        
+    print("\n==================== FLIGHT DETAILS ====================")
+    print("-" * 95)
+
+    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
+    print("-" * 95)
+
+    print(
+        f"{flight[0]:<10}"
+        f"{flight[1]:<10}"
+        f"{flight[2]:<10}"
+        f"{flight[3]:<15}"
+        f"{flight[4]:<12}"
+        f"{flight[5]:<10}"
+        f"{flight[6]:<10}"
+        f"{flight[7]}"
+    )
+
+    print("-" * 95)
+    conn.close()
 
 def search_by_source_destination():
     conn = get_connection()
@@ -158,15 +182,32 @@ def search_by_source_destination():
 
     flights = cursor.fetchall()
 
-    if flights:
-        print(Fore.GREEN + "Flights Found:")
-        for flight in flights:
-            print(flight)
-    else:
+    if not flights:
         print(Fore.RED + "No flights found.")
+        conn.close()
+        return
 
+    print("\n==================== SEARCH RESULTS ====================")
+    print(f"Total Flights : {len(flights)}")
+    print("-" * 95)
+
+    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
+    print("-" * 95)
+
+    for flight in flights:
+        print(
+            f"{flight[0]:<10}"
+            f"{flight[1]:<10}"
+            f"{flight[2]:<10}"
+            f"{flight[3]:<15}"
+            f"{flight[4]:<12}"
+            f"{flight[5]:<10}"
+            f"{flight[6]:<10}"
+            f"{flight[7]}"
+        )
+
+    print("-" * 95)
     conn.close()
-    
     
 def update_available_seats():
     conn = get_connection()
@@ -265,125 +306,6 @@ def delete_flight():
 
     finally:
         conn.close()
-
-def view_flight_menu():
-    while True:
-        console.rule("[bold cyan]View Flights[/bold cyan]")
-        print("1. View All Flights")
-        print("2. View Available Flights")
-        print("3. Back")
-
-        sub_choice = input("Enter your choice: ")
-
-        if sub_choice == "1":
-            view_all_flights()
-
-        elif sub_choice == "2":
-            view_available_flights()
-
-        elif sub_choice == "3":
-            break
-
-        else:
-            print(Fore.RED + "Invalid choice!")
-
-def search_flight_menu():
-    while True:
-        console.rule("[bold yellow]Search Flight[/bold yellow]")
-
-        
-        print("1. Search by Flight ID")
-        print("2. Search by Source & Destination")
-        print("3. Back")
-
-        sub_choice = input("Enter your choice: ")
-
-        if sub_choice == "1":
-            search_by_flight_id()
-
-        elif sub_choice == "2":
-            search_by_source_destination()
-
-        elif sub_choice == "3":
-            break
-
-        else:
-            print(Fore.RED + "Invalid Choice")       
-
-def update_flight_menu():
-    while True:
-        console.rule("[bold magenta]Update Flight[/bold magenta]")
-        print("1. Update Schedule")
-        print("2. Update Fare")
-        print("3. Update Available Seats")
-        print("4. Back")
-
-        sub_choice = input("Enter your choice: ")
-
-        if sub_choice == "1":
-            update_schedule()
-
-        elif sub_choice == "2":
-            update_fare()
-
-        elif sub_choice == "3":
-            update_available_seats()
-
-        elif sub_choice == "4":
-            break
-        else:
-            print(Fore.RED +"Invalid choice!")
-
-
-def delete_flight_menu():
-    while True:
-        console.rule("[bold red]Delete Flight[/bold red]")
-
-        print("1. Delete Flight")
-        print("2. Back")
-
-        sub_choice = input("Enter your choice: ")
-
-        if sub_choice == "1":
-            delete_flight()
-
-        elif sub_choice == "2":
-            break
-
-        else:
-            print(Fore.RED +"Invalid choice!")            
-def flight_management_menu():
-    while True:
-        console.rule("[bold blue]Flight Management[/bold blue]")
-        print("1. Add Flight")
-        print("2. View Flights")
-        print("3. Search Flight")
-        print("4. Update Flight")
-        print("5. Delete Flight")
-        print("6. Back")
-
-        choice = input("Enter your choice: ")
-
-        if choice == "1":
-            add_flight()
-
-        elif choice == "2":
-            view_flight_menu()
-            
-        elif choice == "3":
-            search_flight_menu()
-            
-        elif choice == "4":
-            update_flight_menu()
-
-        elif choice == "5":
-            delete_flight_menu()
-
-        elif choice == "6":
-            print(Fore.GREEN + "Returning to Main Menu...")
-            break
-            
-        else:
-            print(Fore.RED + "Invalid Choice")
+ 
 
    

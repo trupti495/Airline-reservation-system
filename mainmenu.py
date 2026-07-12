@@ -165,7 +165,6 @@ def payment_history_menu():
         else:
             print("Invalid Choice!")
 
-
 def ticket_receipt_menu():
     while True:
         heading("GENERATE TICKET / RECEIPT ")
