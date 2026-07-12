@@ -1,9 +1,22 @@
 from database import get_connection
 conn = get_connection()
 cursor = conn.cursor()
+from rich.console import Console
+from rich.table import Table
+
+console = Console()
+
+def heading(title):
+    print()
+    console.rule(
+        f"[bold bright_yellow]{title}[/bold bright_yellow]",
+        style="bright_blue"
+    )
+    print()
+
 def add_passenger():
    
-    print("\n========== ADD PASSENGER ==========\n")
+    heading("ADD PASSENGER")
 
     try:
 
@@ -71,9 +84,7 @@ console = Console()
 # ==========================================
 
 def view_all_passengers():
-
-    print("\n========== ALL PASSENGERS ==========\n")
-
+    heading("ALL PASSENGERS")
     cursor.execute("SELECT * FROM passengers")
     passengers = cursor.fetchall()
 
@@ -106,8 +117,7 @@ def view_all_passengers():
 
 def view_passenger_by_id():
 
-    print("\n========== VIEW PASSENGER BY ID ==========\n")
-
+    heading("VIEW PASSENGER BY ID")
     try:
 
         passenger_id = int(input("Enter Passenger ID : "))
@@ -153,7 +163,7 @@ def view_passenger_by_id():
 
 def view_passenger_by_name():
 
-    print("\n========== VIEW PASSENGER BY NAME ==========\n")
+    heading("VIEW PASSENGER BY NAME")
 
     try:
 
@@ -199,7 +209,7 @@ def view_passenger_by_name():
 
 def update_passenger():
 
-    print("\n========== UPDATE PASSENGER ==========\n")
+    heading("UPDATE PASSENGER")
 
     try:
 
@@ -282,7 +292,7 @@ def update_passenger():
 
 def update_contact_number():
 
-    print("\n========== UPDATE CONTACT NUMBER ==========\n")
+    heading("UPDATE CONTACT NUMBER")
 
     try:
 
@@ -316,7 +326,7 @@ def update_contact_number():
 
 def delete_passenger_by_id():
 
-    print("\n========== DELETE PASSENGER ==========\n")
+    heading("DELETE PASSENGER")
 
     try:
 
@@ -375,7 +385,7 @@ def passenger_management():
 
     while True:
 
-        print("\n========== PASSENGER MANAGEMENT ==========")
+        heading("PASSENGER MANAGEMENT")
         print("1. Add Passenger")
         print("2. View Passengers")
         print("3. Update Passenger")
@@ -391,7 +401,7 @@ def passenger_management():
 
             while True:
 
-                print("\n------ VIEW PASSENGERS ------")
+                heading("VIEW PASSENGERS")
                 print("1. View All Passengers")
                 print("2. View by Passenger ID")
                 print("3. View by Name")
@@ -418,7 +428,7 @@ def passenger_management():
 
             while True:
 
-                print("\n------ UPDATE PASSENGER ------")
+                heading("UPDATE PASSENGER")
                 print("1. Update by Passenger ID")
                 print("2. Update Contact Number")
                 print("3. Back")
@@ -441,7 +451,7 @@ def passenger_management():
 
             while True:
 
-                print("\n------ DELETE PASSENGER ------")
+                heading("DELETE PASSENGER")
                 print("1. Delete by Passenger ID")
                 print("2. Delete by Name")
                 print("3. Back")

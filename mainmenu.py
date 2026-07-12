@@ -219,49 +219,47 @@ def admin_menu():
 
         print("Logged in as : ADMIN\n")
 
-        print("  1. Flight Management")
-        print("  2. Passenger Management")
-        print("  3. Booking Management")
-        print("  4. Payment Management")
-        print("  5. Airport & Airline Management")
+        print("  1. Passenger Management")
+        print("  2. Airport & Airline Management")
+        print("  3. Flight Management")
+        print("  4. Booking Management")
+        print("  5. Payment Management")
         print("  6. Reports")
         print("  7. Logout")
 
         choice = input("\nEnter Choice : ")
 
         if choice == "1":
-            flight_management_menu()
-
-        elif choice == "2":
             passenger_management.passenger_management()
 
+        elif choice == "2":
+            airport_airline_menu()
+
         elif choice == "3":
+            flight_management_menu()
+
+        elif choice == "4":
             booking = book_management.BookingManagement()
             booking.main()
 
-        elif choice == "4":
-            payment_management_menu()
-
         elif choice == "5":
-            airport_airline_menu()
+            payment_management_menu()
 
         elif choice == "6":
             report.reports_menu()
 
         elif choice == "7":
             heading("LOGOUT")
-            print("Logged Out Successfully.\n")
+            print("Logged Out Successfully.")
             break
 
         else:
             print("Invalid Choice!")
 
-
 def user_menu():
     while True:
-        print("\n=========================================")
-        print("       AIRLINE RESERVATION SYSTEM")
-        print("=========================================")
+        
+        heading(" AIRLINE RESERVATION SYSTEM")
         print("Logged in as : USER\n")
         print("1. View Flights")
         print("2. Search Flight")
