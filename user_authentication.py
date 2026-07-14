@@ -1,6 +1,9 @@
 from database import get_connection
 from getpass import getpass
 from rich.console import Console
+from email.message import EmailMessage
+import smtplib
+import random
 
 console = Console()
 
@@ -155,24 +158,72 @@ def login():
 # 1.2.1 Login as Admin
 # ==========================================
 def login_admin():
+
     heading("ADMIN LOGIN")
 
-    username = input("Enter Username : ")
-    password = getpass("Enter Password : ")
+    username = input("Enter Username : ").strip()
+    password = getpass("Enter Password : ").strip()
 
     cursor.execute("""
-        SELECT * FROM users
+        SELECT *
+        FROM users
         WHERE username=? AND password=? AND LOWER(role)='admin'
     """, (username, password))
 
     row = cursor.fetchone()
 
-    if row:
-        print("Admin Login Successful.")
-        return "admin"
+    if not row:
+        print("Invalid Username or Password.")
+        return None
 
-    print("Invalid Username or Password.")
-    return None
+    # Ask for email
+    email = input("Enter Your Gmail Address : ").strip()
+
+    # Generate OTP
+    otp = str(random.randint(100000, 999999))
+
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = "Admin Login OTP"
+        msg["From"] = "yourgmail@gmail.com"          # Your Gmail
+        msg["To"] = email
+
+        msg.set_content(f"""
+Hello Admin,
+
+Your OTP for Admin Login is : {otp}
+
+Do not share this OTP with anyone.
+
+Thank You
+Airline Reservation System
+""")
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+
+        # Login using your Gmail and App Password
+        server.login("shitoletrupti6@gmail.com", "gkggkjfeenrljdmm")
+
+        server.send_message(msg)
+        server.quit()
+
+        print("\nOTP has been sent successfully.")
+
+    except Exception as e:
+        print("Failed to send OTP.")
+        print(e)
+        return None
+
+    # Verify OTP
+    entered_otp = input("Enter OTP : ").strip()
+
+    if entered_otp == otp:
+        print("\nAdmin Login Successful.")
+        return "admin"
+    else:
+        print("\nInvalid OTP.")
+        return None
 # ==========================================
 # 1.2.2 Login as User
 # ==========================================

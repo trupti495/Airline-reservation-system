@@ -19,7 +19,6 @@ def add_passenger():
     heading("ADD PASSENGER")
 
     try:
-
         passenger_name = input("Enter Passenger Name : ").strip()
         age = int(input("Enter Age : "))
         gender = input("Enter Gender (Male/Female/Other) : ").strip().title()
