@@ -1,8 +1,6 @@
 import sys
 from rich.console import Console
-
 console = Console()
-
 def heading(title):
     print()
     console.rule(
@@ -10,7 +8,6 @@ def heading(title):
         style="bright_blue"
     )
     print()
-
 import user_authentication
 import flight_management
 import passenger_management
@@ -18,6 +15,7 @@ import book_management
 import payment_management 
 import airline_airport_management
 import report
+import forgot
 
 # ======================================================================
 # STEP 2: FLIGHT MANAGEMENT MENU
@@ -76,8 +74,6 @@ def airline_management_menu():
             break
         else:
             print("Invalid Choice!")
-
-
 def airport_management_menu():
     while True:
         heading("AIRPORT MANAGEMENT")
@@ -168,19 +164,14 @@ def payment_history_menu():
 def ticket_receipt_menu():
     while True:
         heading("GENERATE TICKET / RECEIPT ")
-        print("1. Generate Ticket")
-        print("2. Generate Receipt")
-        print("3. Print Ticket")
-        print("4. Back")
+        print("1. Print Ticket")
+        print("2. Back")
         choice = input("Enter Choice : ")
 
+
         if choice == "1":
-            payment_management.generate_ticket()
-        elif choice == "2":
-            payment_management.generate_receipt()
-        elif choice == "3":
             payment_management.print_ticket()
-        elif choice == "4":
+        elif choice == "2":
             break
         else:
             print("Invalid Choice!")
@@ -277,7 +268,7 @@ def user_menu():
             flight_management.search_flight_menu()
         elif choice == "3":
             booking = book_management.BookingManagement()
-            booking.book_ticket()
+            booking.confirm_booking()
         elif choice == "4":
             booking = book_management.BookingManagement()
             booking.view_by_passenger_id()
@@ -302,7 +293,8 @@ def main():
 
         print("1. Login")
         print("2. Register")
-        print("3. Exit")
+        print("3. forgot password")
+        print("4. Exit")
 
         choice = input("\nEnter Choice : ")
 
@@ -320,7 +312,10 @@ def main():
 
             user_authentication.register_user()
 
-        elif choice == "3":
+        elif choice == "3": 
+            forgot.forgot_password()
+
+        elif choice == "4":
 
             heading("THANK YOU")
             print("Exiting Airline Reservation System...")

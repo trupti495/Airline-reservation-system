@@ -1,7 +1,9 @@
 from database import get_connection
 from rich.console import Console
-console = Console()
+from rich.table import Table
+import sqlite3
 
+console = Console()
 
 def heading(title):
     print()
@@ -39,7 +41,6 @@ def add_airline():
 def view_airlines():
 
     while True:
-
         heading("VIEW AIRLINES")
         print("1. View All Airlines")
         print("2. Search by Airline ID")
@@ -49,47 +50,51 @@ def view_airlines():
         choice = input("Enter Choice : ")
 
         if choice == "1":
-
-            cursor.execute("SELECT * FROM airlines")
-
+            cursor.execute("SELECT airline_id, airline_name FROM airlines")
             rows = cursor.fetchall()
 
             if rows:
+                table = Table(title="All Airlines", show_lines=True)
+                table.add_column("Airline ID", style="cyan", justify="center")
+                table.add_column("Airline Name", style="green")
                 for row in rows:
-                    print(row)
+                    table.add_row(str(row[0]), row[1])
+                console.print(table)
             else:
                 print("No Record Found!")
 
         elif choice == "2":
-
             airline_id = int(input("Enter Airline ID : "))
-
             cursor.execute(
-                "SELECT * FROM airlines WHERE airline_id=?",
+                "SELECT airline_id, airline_name FROM airlines WHERE airline_id=?",
                 (airline_id,)
             )
-
             row = cursor.fetchone()
 
             if row:
-                print(row)
+                table = Table(title="Airline Details", show_lines=True)
+                table.add_column("Airline ID", style="cyan", justify="center")
+                table.add_column("Airline Name", style="green")
+                table.add_row(str(row[0]), row[1])
+                console.print(table)
             else:
                 print("No Record Found!")
 
         elif choice == "3":
-
             name = input("Enter Airline Name : ")
-
             cursor.execute(
-                "SELECT * FROM airlines WHERE airline_name LIKE ?",
+                "SELECT airline_id, airline_name FROM airlines WHERE airline_name LIKE?",
                 ('%' + name + '%',)
             )
-
             rows = cursor.fetchall()
 
             if rows:
+                table = Table(title=f"Search Results for '{name}'", show_lines=True)
+                table.add_column("Airline ID", style="cyan", justify="center")
+                table.add_column("Airline Name", style="green")
                 for row in rows:
-                    print(row)
+                    table.add_row(str(row[0]), row[1])
+                console.print(table)
             else:
                 print("No Record Found!")
 
@@ -103,7 +108,6 @@ def view_airlines():
 # UPDATE AIRLINE
 # =====================================================
 def update_airline():
-
     heading("UPDATE AIRLINE")
 
     airline_id = int(input("Enter Airline ID : "))
@@ -129,53 +133,43 @@ def update_airline():
 # DELETE AIRLINE
 # =====================================================
 def delete_airline():
-
     heading("DELETE AIRLINE")
-
     try:
         airline_id = int(input("Enter Airline ID : "))
 
         # Check if airline exists
-        cursor.execute(
-            "SELECT * FROM airlines WHERE airline_id=?",
-            (airline_id,)
-        )
+        cursor.execute("SELECT airline_name FROM airlines WHERE airline_id=?", (airline_id,))
         airline = cursor.fetchone()
-
         if not airline:
             print("Airline ID Not Found!")
             return
 
         # Check if airline is used in flights table
-        cursor.execute(
-            "SELECT * FROM flights WHERE airline_id=?",
-            (airline_id,)
-        )
-
+        cursor.execute("SELECT * FROM flights WHERE airline_id=?", (airline_id,))
         if cursor.fetchone():
             print("Cannot delete! This airline is assigned to one or more flights.")
             return
 
-        # Delete airline
-        cursor.execute(
-            "DELETE FROM airlines WHERE airline_id=?",
-            (airline_id,)
-        )
+        # Confirmation
+        confirm = input(f"Are you sure you want to delete '{airline[0]}'? [y/N]: ").lower()
+        if confirm!= 'y':
+            print("Deletion cancelled.")
+            return
 
+        # Delete airline
+        cursor.execute("DELETE FROM airlines WHERE airline_id=?", (airline_id,))
         conn.commit()
         print("Airline Deleted Successfully!")
 
     except ValueError:
         print("Invalid Airline ID! Please enter a number.")
-
     except Exception as e:
         print("Error:", e)
 # =====================================================
 # ADD AIRPORT
 # =====================================================
 def add_airport():
-
-    heading("Add airport")
+    heading("ADD AIRPORT")
     airport_name = input("Enter Airport Name : ")
     city = input("Enter City : ")
 
@@ -195,10 +189,8 @@ def add_airport():
 # VIEW AIRPORTS
 # =====================================================
 def view_airports():
-
     while True:
-
-        heading("VIEW AIRPORTS ")
+        heading("VIEW AIRPORTS")
         print("1. View All Airports")
         print("2. Search by Airport ID")
         print("3. Search by Airport Name")
@@ -207,47 +199,54 @@ def view_airports():
         choice = input("Enter Choice : ")
 
         if choice == "1":
-
-            cursor.execute("SELECT * FROM airports")
-
+            cursor.execute("SELECT airport_id, airport_name, city FROM airports")
             rows = cursor.fetchall()
 
             if rows:
+                table = Table(title="All Airports", show_lines=True)
+                table.add_column("Airport ID", style="cyan", justify="center")
+                table.add_column("Airport Name", style="green")
+                table.add_column("City", style="yellow")
                 for row in rows:
-                    print(row)
+                    table.add_row(str(row[0]), row[1], row[2])
+                console.print(table)
             else:
                 print("No Record Found!")
 
         elif choice == "2":
-
             airport_id = int(input("Enter Airport ID : "))
-
             cursor.execute(
-                "SELECT * FROM airports WHERE airport_id=?",
+                "SELECT airport_id, airport_name, city FROM airports WHERE airport_id=?",
                 (airport_id,)
             )
-
             row = cursor.fetchone()
 
             if row:
-                print(row)
+                table = Table(title="Airport Details", show_lines=True)
+                table.add_column("Airport ID", style="cyan", justify="center")
+                table.add_column("Airport Name", style="green")
+                table.add_column("City", style="yellow")
+                table.add_row(str(row[0]), row[1], row[2])
+                console.print(table)
             else:
                 print("No Record Found!")
 
         elif choice == "3":
-
             name = input("Enter Airport Name : ")
-
             cursor.execute(
-                "SELECT * FROM airports WHERE airport_name LIKE ?",
+                "SELECT airport_id, airport_name, city FROM airports WHERE airport_name LIKE?",
                 ('%' + name + '%',)
             )
-
             rows = cursor.fetchall()
 
             if rows:
+                table = Table(title=f"Search Results for '{name}'", show_lines=True)
+                table.add_column("Airport ID", style="cyan", justify="center")
+                table.add_column("Airport Name", style="green")
+                table.add_column("City", style="yellow")
                 for row in rows:
-                    print(row)
+                    table.add_row(str(row[0]), row[1], row[2])
+                console.print(table)
             else:
                 print("No Record Found!")
 
@@ -261,7 +260,6 @@ def view_airports():
 # UPDATE AIRPORT
 # =====================================================
 def update_airport():
-
     heading("UPDATE AIRPORT")
 
     airport_id = int(input("Enter Airport ID : "))
@@ -286,49 +284,38 @@ def update_airport():
 # =====================================================
 # DELETE AIRPORT
 # =====================================================
-import sqlite3
-
 def delete_airport():
-
     heading("DELETE AIRPORT")
-
     try:
         airport_id = int(input("Enter Airport ID : "))
 
         # Check if airport exists
-        cursor.execute(
-            "SELECT * FROM airports WHERE airport_id=?",
-            (airport_id,)
-        )
-
-        if cursor.fetchone() is None:
+        cursor.execute("SELECT airport_name, city FROM airports WHERE airport_id=?", (airport_id,))
+        airport = cursor.fetchone()
+        if airport is None:
             print("Airport ID Not Found!")
             return
 
         # Check whether airport is used in flights
-        cursor.execute("""
-            SELECT * FROM flights
-            WHERE source_airport_id=? OR destination_airport_id=?
-        """, (airport_id, airport_id))
-
+        cursor.execute("SELECT * FROM flights WHERE source_airport_id=? OR destination_airport_id=?", (airport_id, airport_id))
         if cursor.fetchone():
             print("Cannot delete! This airport is assigned to one or more flights.")
             return
+        else:
+        # Confirmation
+         confirm = input(f"Are you sure you want to delete '{airport[0]}' in {airport[1]}? [y/N]: ").lower()
+         if confirm!= 'y':
+            print("Deletion cancelled.")
+            return
 
-        # Delete airport
-        cursor.execute(
-            "DELETE FROM airports WHERE airport_id=?",
-            (airport_id,)
-        )
-
-        conn.commit()
-        print("Airport Deleted Successfully!")
+         else: # Delete airport
+          cursor.execute("DELETE FROM airports WHERE airport_id=?", (airport_id,))
+          conn.commit()
+          print("Airport Deleted Successfully!")
 
     except ValueError:
         print("Invalid Airport ID! Please enter a number.")
-
     except sqlite3.IntegrityError:
         print("Cannot delete! Airport is linked with existing records.")
-
     except Exception as e:
         print("Error:", e)

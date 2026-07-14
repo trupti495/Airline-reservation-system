@@ -15,17 +15,22 @@ def heading(title):
     print()
 
 def add_passenger():
-   
+
     heading("ADD PASSENGER")
 
     try:
 
-        passenger_name = input("Enter Passenger Name : ")
+        passenger_name = input("Enter Passenger Name : ").strip()
         age = int(input("Enter Age : "))
-        gender = input("Enter Gender (Male/Female/Other) : ")
-        phone = input("Enter Contact Number : ")
+        gender = input("Enter Gender (Male/Female/Other) : ").strip().title()
+        phone = input("Enter Contact Number : ").strip()
 
-        # Validation
+        username = input("Enter Username : ").strip()
+        password = input("Enter Password : ").strip()
+
+        role = "user"
+
+        # ---------------- Validation ----------------
 
         if passenger_name == "":
             print("Passenger Name Cannot Be Empty!")
@@ -43,10 +48,17 @@ def add_passenger():
             print("Contact Number Must Be 10 Digits!")
             return
 
-        # Check duplicate phone number
+        if username == "":
+            print("Username Cannot Be Empty!")
+            return
 
+        if len(password) < 6:
+            print("Password must contain at least 6 characters.")
+            return
+
+        # Check duplicate phone
         cursor.execute(
-            "SELECT * FROM passengers WHERE phone=?",
+            "SELECT 1 FROM passengers WHERE phone=?",
             (phone,)
         )
 
@@ -54,30 +66,55 @@ def add_passenger():
             print("Contact Number Already Exists!")
             return
 
-        # Insert passenger
-
+        # Check duplicate username
         cursor.execute(
-            """
+            "SELECT 1 FROM users WHERE LOWER(username)=LOWER(?)",
+            (username,)
+        )
+
+        if cursor.fetchone():
+            print("Username Already Exists!")
+            return
+
+        # Insert into passengers
+        cursor.execute("""
             INSERT INTO passengers
             (passenger_name, age, gender, phone)
             VALUES (?, ?, ?, ?)
-            """,
-            (passenger_name, age, gender, phone)
-        )
+        """, (
+            passenger_name,
+            age,
+            gender,
+            phone
+        ))
+
+        passenger_id = cursor.lastrowid
+
+        # Insert into users
+        cursor.execute("""
+            INSERT INTO users
+            (username, password, role)
+            VALUES (?, ?, ?)
+        """, (
+            username,
+            password,
+            role
+        ))
 
         conn.commit()
 
-        print("\nPassenger Added Successfully!")
+        heading("PASSENGER ADDED SUCCESSFULLY")
+
+        print("Passenger ID :", passenger_id)
+        print("Username     :", username)
+        print("Role         :", role)
 
     except ValueError:
         print("Age Must Be Numeric!")
 
     except Exception as e:
+        conn.rollback()
         print("Error :", e)
-from rich.console import Console
-from rich.table import Table
-
-console = Console()
 
 # ==========================================
 # 3.2.1 VIEW ALL PASSENGERS

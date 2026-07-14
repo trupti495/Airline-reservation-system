@@ -129,45 +129,89 @@ class BookingManagement:
             print("Error:", e)
 
     # 4.1.3 Confirm Booking
+    from datetime import datetime
+
     def confirm_booking(self):
-        try:
-            heading("CONFIRM BOOKING")
-            passenger_id = input("Enter Passenger ID: ").strip()
-            cursor.execute("SELECT * FROM passengers WHERE passenger_id=?", (passenger_id,))
-            if cursor.fetchone() is None:
-                print("Passenger ID not found.")
-                return
+     try:
+        heading("CONFIRM BOOKING")
 
-            flight_id = input("Enter Flight ID: ").strip()
-            cursor.execute("SELECT available_seats FROM flights WHERE flight_id=?", (flight_id,))
-            flight_data = cursor.fetchone()
-            if flight_data is None:
-                print("Flight ID not found.")
-                return
-            if flight_data[0] <= 0:
-                print("No seats available on this flight.")
-                return
+        passenger_id = input("Enter Passenger ID: ").strip()
 
-            seat_no = input("Enter Seat Number: ").strip()
-            cursor.execute("SELECT * FROM bookings WHERE flight_id=? AND seat_no=? AND status=?",
-                           (flight_id, seat_no, "Confirmed"))
-            if cursor.fetchone():
-                print("Seat is already booked.")
-                return
+        cursor.execute(
+            "SELECT * FROM passengers WHERE passenger_id = ?",
+            (passenger_id,)
+        )
 
-            booking_date = datetime.now().strftime("%Y-%m-%d")
-            cursor.execute("""
-                INSERT INTO bookings (passenger_id, flight_id, seat_no, booking_date, status)
-                VALUES(?,?,?,?,?)
-            """, (passenger_id, flight_id, seat_no, booking_date, "Confirmed"))
+        if cursor.fetchone() is None:
+            print("Passenger ID not found.")
+            return
 
-            cursor.execute("UPDATE flights SET available_seats = available_seats - 1 WHERE flight_id=?", (flight_id,))
-            conn.commit()
-            print("Booking Confirmed Successfully")
-        except Exception as e:
-            conn.rollback()
-            print("Error:", e)
+        flight_id = input("Enter Flight ID: ").strip()
 
+        cursor.execute("""
+            SELECT total_seats
+            FROM flights
+            WHERE flight_id = ?
+        """, (flight_id,))
+
+        flight = cursor.fetchone()
+
+        if flight is None:
+            print("Flight ID not found.")
+            return
+
+        seat_no = input("Enter Seat Number: ").strip().upper()
+
+        cursor.execute("""
+            SELECT booking_id
+            FROM bookings
+            WHERE flight_id = ?
+            AND seat_no = ?
+            AND status IN ('Pending', 'Confirmed')
+        """, (flight_id, seat_no))
+
+        if cursor.fetchone():
+            print("Seat is already booked.")
+            return
+
+        booking_date = datetime.now().strftime("%Y-%m-%d")
+
+        cursor.execute("""
+            INSERT INTO bookings
+            (
+                passenger_id,
+                flight_id,
+                booking_date,
+                seat_no,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            passenger_id,
+            flight_id,
+            booking_date,
+            seat_no,
+            "Pending"
+        ))
+
+        # Get generated booking ID
+        booking_id = cursor.lastrowid
+        print("booking id:",booking_id)
+        conn.commit()
+
+        heading("BOOKING SUCCESSFUL")
+
+        print("Booking ID :", booking_id)
+        print("Passenger ID :", passenger_id)
+        print("Flight ID :", flight_id)
+        print("Seat Number :", seat_no)
+        print("Booking Date :", booking_date)
+        print("Status : Pending")
+        print("Please complete the payment to confirm your booking.")
+
+     except Exception as e:
+        conn.rollback()
+        print("Error :", e)
     # 4.2 VIEW BOOKING
     def view_booking(self):
         while True:

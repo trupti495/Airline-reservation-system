@@ -1,9 +1,20 @@
 from database import get_connection
 import sqlite3
+from rich.table import Table
 from rich.console import Console
-from colorama import Fore, init
+from colorama import Fore, init,Style
 from tabulate import tabulate
 
+
+console = Console()
+
+def heading(title):
+    print()
+    console.rule(
+        f"[bold bright_yellow]{title}[/bold bright_yellow]",
+        style="bright_blue"
+    )
+    print()
 init(autoreset=True)
 console = Console()
 
@@ -43,19 +54,29 @@ def add_flight():
 
     try: 
         cursor.execute("""
-            INSERT INTO flights
-            (airline_id, source_airport_id, destination_airport_id,
-            departure_date, departure_time, fare, available_seats)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        airline_id,
-        source_airport_id,
-        destination_airport_id,
-        departure_date,
-        departure_time,
-        fare,
-        available_seats
-    ))
+INSERT INTO flights
+(
+    airline_id,
+    source_airport_id,
+    destination_airport_id,
+    departure_date,
+    departure_time,
+    fare,
+    total_seats,
+    available_seats
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+""",
+(
+    airline_id,
+    source_airport_id,
+    destination_airport_id,
+    departure_date,
+    departure_time,
+    fare,
+    available_seats,
+    available_seats
+))
 
         conn.commit()
     
@@ -67,6 +88,9 @@ def add_flight():
         conn.close()    
 
 def view_all_flights():
+
+    heading("VIEW ALL FLIGHTS")
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -74,66 +98,91 @@ def view_all_flights():
     flights = cursor.fetchall()
 
     if not flights:
-        print("\nNo flights found.")
+        print("No flights found.")
         conn.close()
         return
 
-        print("\n==================== ALL FLIGHTS ====================")
-    print(f"Total Flights : {len(flights)}")
-    print("-" * 95)
+    table = Table(
+        title="[bold bright_cyan]✈ ALL FLIGHTS ✈[/bold bright_cyan]",
+        show_lines=True,
+        header_style="bold bright_white"
+    )
 
-    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
-    print("-" * 95)
+    table.add_column("Flight ID", style="bright_yellow", justify="center")
+    table.add_column("Airline ID", style="bright_green", justify="center")
+    table.add_column("Source", style="cyan", justify="center")
+    table.add_column("Destination", style="magenta", justify="center")
+    table.add_column("Date", style="bright_blue", justify="center")
+    table.add_column("Time", style="bright_red", justify="center")
+    table.add_column("Fare (₹)", style="green", justify="right")
+    table.add_column("Seats", style="yellow", justify="center")
 
     for flight in flights:
-        print(
-            f"{flight[0]:<10}"
-            f"{flight[1]:<10}"
-            f"{flight[2]:<10}"
-            f"{flight[3]:<15}"
-            f"{flight[4]:<12}"
-            f"{flight[5]:<10}"
-            f"{flight[6]:<10}"
-            f"{flight[7]}"
+        table.add_row(
+            str(flight[0]),
+            str(flight[1]),
+            str(flight[2]),
+            str(flight[3]),
+            str(flight[4]),
+            str(flight[5]),
+            f"₹ {flight[6]}",
+            str(flight[7])
         )
 
-    print("-" * 95)
-    conn.close()                       
+    console.print(table)
+
+    conn.close()
 
 def view_available_flights():
-    
+
+    heading("AVAILABLE FLIGHTS")
+
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM flights WHERE available_seats > 0")
+    cursor.execute("""
+        SELECT *
+        FROM flights
+        WHERE available_seats > 0
+    """)
+
     flights = cursor.fetchall()
-    
+
     if not flights:
-        print("\nNo Available Flights.")
+        print("No Available Flights.")
         conn.close()
         return
 
-    print("\n================== AVAILABLE FLIGHTS ==================")
-    print(f"Total Available Flights : {len(flights)}")
-    print("-" * 95)
+    table = Table(
+        title="[bold bright_green]🛫 AVAILABLE FLIGHTS 🛫[/bold bright_green]",
+        show_lines=True,
+        header_style="bold bright_white"
+    )
 
-    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
-    print("-" * 95)
+    table.add_column("Flight ID", style="bright_yellow", justify="center")
+    table.add_column("Airline ID", style="bright_green", justify="center")
+    table.add_column("Source", style="cyan", justify="center")
+    table.add_column("Destination", style="magenta", justify="center")
+    table.add_column("Date", style="bright_blue", justify="center")
+    table.add_column("Time", style="bright_red", justify="center")
+    table.add_column("Fare (₹)", style="green", justify="right")
+    table.add_column("Seats", style="bold bright_green", justify="center")
 
     for flight in flights:
-        print(
-            f"{flight[0]:<10}"
-            f"{flight[1]:<10}"
-            f"{flight[2]:<10}"
-            f"{flight[3]:<15}"
-            f"{flight[4]:<12}"
-            f"{flight[5]:<10}"
-            f"{flight[6]:<10}"
-            f"{flight[7]}"
+        table.add_row(
+            str(flight[0]),
+            str(flight[1]),
+            str(flight[2]),
+            str(flight[3]),
+            str(flight[4]),
+            str(flight[5]),
+            f"₹ {flight[6]}",
+            str(flight[7])
         )
-    print("-" * 95)
-    conn.close()  
 
+    console.print(table)
+
+    conn.close()
 def search_by_flight_id():
     conn = get_connection()
     cursor = conn.cursor()
@@ -148,29 +197,36 @@ def search_by_flight_id():
         conn.close()
         return
 
-    print("\n==================== FLIGHT DETAILS ====================")
-    print("-" * 95)
+    table = Table(title="Flight Details")
 
-    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
-    print("-" * 95)
+    table.add_column("Flight ID")
+    table.add_column("Airline ID")
+    table.add_column("Source")
+    table.add_column("Destination")
+    table.add_column("Date")
+    table.add_column("Time")
+    table.add_column("Fare")
+    table.add_column("Seats")
 
-    print(
-        f"{flight[0]:<10}"
-        f"{flight[1]:<10}"
-        f"{flight[2]:<10}"
-        f"{flight[3]:<15}"
-        f"{flight[4]:<12}"
-        f"{flight[5]:<10}"
-        f"{flight[6]:<10}"
-        f"{flight[7]}"
+    table.add_row(
+        str(flight[0]),
+        str(flight[1]),
+        str(flight[2]),
+        str(flight[3]),
+        str(flight[4]),
+        str(flight[5]),
+        str(flight[6]),
+        str(flight[7])
     )
 
-    print("-" * 95)
+    console.print(table)
+
     conn.close()
 
 def search_by_source_destination():
     conn = get_connection()
     cursor = conn.cursor()
+
 
     source_airport_id = int(input("Enter Source Airport ID: "))
     destination_airport_id = int(input("Enter Destination Airport ID: "))
@@ -187,28 +243,32 @@ def search_by_source_destination():
         conn.close()
         return
 
-    print("\n==================== SEARCH RESULTS ====================")
-    print(f"Total Flights : {len(flights)}")
-    print("-" * 95)
+    table = Table(title="Search Results")
 
-    print(f"{'Flight ID':<10}{'Airline':<10}{'Source':<10}{'Destination':<15}{'Date':<12}{'Time':<10}{'Fare':<10}{'Seats'}")
-    print("-" * 95)
+    table.add_column("Flight ID")
+    table.add_column("Airline ID")
+    table.add_column("Source")
+    table.add_column("Destination")
+    table.add_column("Date")
+    table.add_column("Time")
+    table.add_column("Fare")
+    table.add_column("Seats")
 
     for flight in flights:
-        print(
-            f"{flight[0]:<10}"
-            f"{flight[1]:<10}"
-            f"{flight[2]:<10}"
-            f"{flight[3]:<15}"
-            f"{flight[4]:<12}"
-            f"{flight[5]:<10}"
-            f"{flight[6]:<10}"
-            f"{flight[7]}"
+        table.add_row(
+            str(flight[0]),
+            str(flight[1]),
+            str(flight[2]),
+            str(flight[3]),
+            str(flight[4]),
+            str(flight[5]),
+            str(flight[6]),
+            str(flight[7])
         )
 
-    print("-" * 95)
+    console.print(table)
+
     conn.close()
-    
 def update_available_seats():
     conn = get_connection()
     cursor = conn.cursor()
@@ -274,7 +334,6 @@ def update_fare():
         print(Fore.GREEN + "Fare updated successfully!")
     else:
         print(Fore.RED + "Flight not found.")
-
     conn.close()       
 
 def delete_flight():
@@ -296,16 +355,89 @@ def delete_flight():
             print(Fore.RED + "Cannot delete flight. Bookings exist for this flight.")
             return
 
-        cursor.execute("DELETE FROM flights WHERE flight_id = ?", (flight_id,))
-        conn.commit()
+        # Confirmation
+        confirm = input("Are you sure you want to delete this flight? (Y/N): ").strip().upper()
 
-        print(Fore.GREEN + "Flight deleted successfully!")
+        if confirm == "Y":
+            cursor.execute("DELETE FROM flights WHERE flight_id = ?", (flight_id,))
+            conn.commit()
+            print(Fore.GREEN + "Flight deleted successfully!")
+        else:
+            print(Fore.YELLOW + "Deletion cancelled.")
 
     except Exception as e:
-        print(Fore.RED + "Error:", e)
+        print(Fore.RED + f"Error: {e}")
 
     finally:
         conn.close()
- 
 
+def view_flight_menu():
+    while True:
+        print("\n===== VIEW FLIGHTS =====")
+        print("1. View All Flights")
+        print("2. View Available Flights")
+        print("3. Back")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            view_all_flights()
+        elif choice == "2":
+            view_available_flights()
+        elif choice == "3":
+            break
+        else:
+            print("Invalid Choice")
+
+def search_flight_menu():
+    while True:
+        print("\n===== SEARCH FLIGHT =====")
+        print("1. Search by Flight ID")
+        print("2. Search by Source & Destination")
+        print("3. Back")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            search_by_flight_id()
+        elif choice == "2":
+            search_by_source_destination()
+        elif choice == "3":
+            break
+        else:
+            print("Invalid Choice")
+def update_flight_menu():
+    while True:
+        print("\n===== UPDATE FLIGHT =====")
+        print("1. Update Available Seats")
+        print("2. Update Schedule")
+        print("3. Update Fare")
+        print("4. Back")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            update_available_seats()
+        elif choice == "2":
+            update_schedule()
+        elif choice == "3":
+            update_fare()
+        elif choice == "4":
+            break
+        else:
+            print("Invalid Choice")
+def delete_flight_menu():
+    while True:
+        print("\n===== DELETE FLIGHT =====")
+        print("1. Delete Flight")
+        print("2. Back")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            delete_flight()
+        elif choice == "2":
+            break
+        else:
+            print("Invalid Choice")                                    
    

@@ -4,6 +4,49 @@ cursor = conn.cursor()
 from database import get_connection
 from rich.console import Console
 from rich.table import Table
+import smtplib
+from email.message import EmailMessage
+
+def send_ticket_email(receiver_email, ticket):
+
+    sender_email = "shitoletrupti6@gmail.com"      # Your Gmail
+    app_password = "gkggkjfeenrljdmm"   # Gmail App Password
+
+    msg = EmailMessage()
+    msg["Subject"] = "Airline Ticket Confirmation"
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+
+    msg.set_content(f"""
+Dear Passenger,
+
+Thank you for choosing our Airline Reservation System.
+
+Your booking has been confirmed.
+
+Your Ticket Details:
+
+{ticket}
+
+Have a safe and pleasant journey!
+
+Regards,
+Airline Reservation System
+""")
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+
+        print("\nTicket has been sent successfully!")
+        return True
+
+    except Exception as e:
+        print("\nFailed to send email.")
+        print("Error:", e)
+        return False
 
 console = Console()
 
@@ -14,6 +57,7 @@ def heading(title):
         style="bright_blue"
     )
     print()
+
 
 def make_payment(method):
 
@@ -30,25 +74,50 @@ def make_payment(method):
                    payment_method,
                    payment_status
             FROM payments
-            WHERE booking_id=?
+            WHERE booking_id = ?
         """, (booking,))
+        conn.commit()
 
-        row = cursor.fetchone()
+        payment = cursor.fetchone()
 
-        if row:
+        if payment:
             heading("PAYMENT DETAILS")
-            print("Payment ID     :", row[0])
-            print("Booking ID     :", row[1])
-            print("Amount         :", row[2])
-            print("Payment Method :", row[3])
-            print("Payment Status :", row[4])
+            print("Payment ID     :", payment[0])
+            print("Booking ID     :", payment[1])
+            print("Amount         : ₹", payment[2])
+            print("Payment Method :", payment[3])
+            print("Payment Status :", payment[4])
             return
 
-        # If payment does not exist, create a new one
-        amount = float(input("Enter Amount : "))
+        # Get fare for the booking
+        cursor.execute("""
+            SELECT f.fare
+            FROM bookings b
+            JOIN flights f
+                ON b.flight_id = f.flight_id
+            WHERE b.booking_id = ?
+        """, (booking,))
+
+        fare = cursor.fetchone()
+
+        if not fare:
+            print("Invalid Booking ID.")
+            return
+
+        amount = fare[0]
+
+        print(f"\nAmount to Pay : ₹{amount}")
+
+        # Payment confirmation
+        confirm = input("Are you sure you want to pay this amount? (Y/N): ").strip().upper()
+
+        if confirm != "Y":
+            print(" Payment Cancelled.")
+            return
 
         status = "Paid"
 
+        # Insert payment
         cursor.execute("""
             INSERT INTO payments
             (
@@ -61,14 +130,43 @@ def make_payment(method):
         """, (booking, amount, method, status))
 
         conn.commit()
-
+        
         print("\nPayment Successful!")
+        print("Booking ID     :", booking)
+        print("Amount Paid    : ₹", amount)
+        print("Payment Method :", method)
+        print("Payment Status :", status)
 
-    except ValueError:
-        print("Invalid Input!")
+        cursor.execute("""
+        UPDATE bookings
+        SET status = 'Confirmed'
+        WHERE booking_id = ?
+        """, (booking,))
+        conn.commit()
 
+        # Ask user how they want the ticket
+        choice = input("\nDo you want to receive the ticket online? (Y/N): ").strip().upper()
+
+        if choice == "Y":
+
+            email = input("Enter your Email Address: ").strip()
+
+            # Generate ticket (if your function returns ticket text)
+            ticket = generate_ticket()
+
+            # Send ticket to email
+            send_ticket_email(email, ticket)
+
+            print(f"\nTicket has been sent successfully to {email}")
+
+        else:
+            print("\nPrinting Ticket...\n")
+            print_ticket()      # or generate_ticket(booking) if that function prints the ticket
+    
     except Exception as e:
-        print("Error:", e)
+        print(" Error:", e)
+
+
 # =====================================================
 # 5.2 PAYMENT HISTORY
 # =====================================================
@@ -131,71 +229,50 @@ def search_booking_id():
 # =====================================================
 def generate_ticket():
     heading("AIRLINE TICKET")
+
     booking = int(input("Enter Booking ID : "))
+
     cursor.execute("""
     SELECT
-    b.booking_id,
-    p.passenger_name,
-    pay.amount,
-    pay.payment_method,
-    pay.payment_status
+        b.booking_id,
+        p.passenger_name,
+        pay.amount,
+        pay.payment_method,
+        pay.payment_status
     FROM bookings b
     JOIN passengers p
-    ON b.passenger_id = p.passenger_id
+        ON b.passenger_id = p.passenger_id
     JOIN payments pay
-    ON b.booking_id = pay.booking_id
-    WHERE b.booking_id=?
+        ON b.booking_id = pay.booking_id
+    WHERE b.booking_id = ?
     """, (booking,))
+
     row = cursor.fetchone()
+
     if row:
 
-        heading("AIRLINE TICKET")
-        print("Passenger Name :", row[1])
-        print("Booking ID     :", row[0])
-        print("Amount Paid    :", row[2])
-        print("Payment Method :", row[3])
-        print("Payment Status :", row[4])
-        
+        ticket = f"""
+==============================
+       AIRLINE TICKET
+==============================
+Passenger Name : {row[1]}
+Booking ID     : {row[0]}
+Amount Paid    : ₹{row[2]}
+Payment Method : {row[3]}
+Payment Status : {row[4]}
+==============================
+"""
+
+        print(ticket)
+
+        return ticket      # Return the ticket string
 
     else:
         print("Booking Not Found")
-
-
-# =====================================================
-
-def generate_receipt():
-    heading("PAYMENT RECEIPT")
-    pid = int(input("Enter Payment ID : "))
-
-    cursor.execute("""
-    SELECT
-    pay.payment_id,
-    p.passenger_name,
-    pay.booking_id,
-    pay.amount,
-    pay.payment_method,
-    pay.payment_status
-    FROM payments pay
-    JOIN bookings b
-    ON pay.booking_id=b.booking_id
-    JOIN passengers p
-    ON b.passenger_id=p.passenger_id
-    WHERE pay.payment_id=?
-    """, (pid,))
-    row = cursor.fetchone()
-    if row:
-        print("\n========== PAYMENT RECEIPT ==========")
-        print("Receipt No     :", row[0])
-        print("Passenger Name :", row[1])
-        print("Booking ID     :", row[2])
-        print("Amount Paid    :", row[3])
-        print("Method         :", row[4])
-        print("Status         :", row[5])
-        print("====================================")
-    else:
-        print("Receipt Not Found")
+        return None
 
 # =====================================================
+
 
 def print_ticket():
     heading("PRINT TICKET")

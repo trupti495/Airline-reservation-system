@@ -1,7 +1,9 @@
 from database import get_connection
 from rich.console import Console
 from rich.table import Table
+import matplotlib.pyplot as plt
 from colorama import Fore, Style, init
+from matplotlib.ticker import MaxNLocator
 
 console = Console() #object
 def heading(title):
@@ -67,7 +69,8 @@ def flight_report_menu():
         heading("FLIGHT REPORT")
         print("1. Daily Flight Report")
         print("2. Monthly Flight Report")
-        print("3. Back")
+        print("3. Yearly flight report")
+        print("4.exit")
 
         try:
 
@@ -82,7 +85,9 @@ def flight_report_menu():
                     monthly_flight_report()
 
                 case 3:
-                    break
+                    yearly_flight_report()
+                case 4:
+                    break    
 
                 case _:
                     print("Invalid Choice.")
@@ -116,32 +121,25 @@ def daily_flight_report():
         if not rows:
             print("No Flight Found.")
             return
-        print()
-        table = Table(title="Daily Flight Report")
-
-        table.add_column("Flight ID")
-        table.add_column("Airline ID")
-        table.add_column("Source")
-        table.add_column("Destination")
-        table.add_column("Date")
-        table.add_column("Time")
-        table.add_column("Fare")
-        table.add_column("Seats")
+        flight_ids = []
+        available_seats = []
 
         for row in rows:
+            flight_ids.append(str(row[0]))
+            available_seats.append(row[7])
 
-            table.add_row(
-                str(row[0]),
-                str(row[1]),
-                str(row[2]),
-                str(row[3]),
-                str(row[4]),
-                str(row[5]),
-                str(row[6]),
-                str(row[7])
-            )
+        plt.figure(figsize=(8,5))
+        plt.bar(flight_ids, available_seats)
 
-        console.print(table)
+        plt.title("Daily Flight Report")
+        plt.xlabel("Flight ID")
+        plt.ylabel("Available Seats")
+
+        for i, value in enumerate(available_seats):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.grid(axis="y")
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
@@ -176,35 +174,79 @@ def monthly_flight_report():
         if not rows:
             print("No Flight Found.")
             return
-
-        table = Table(title="Monthly Flight Report")
-
-        table.add_column("Flight ID")
-        table.add_column("Airline ID")
-        table.add_column("Source")
-        table.add_column("Destination")
-        table.add_column("Date")
-        table.add_column("Time")
-        table.add_column("Fare")
-        table.add_column("Seats")
+        flight_ids = []
+        available_seats = []
 
         for row in rows:
+         flight_ids.append(str(row[0]))
+         available_seats.append(row[7])
 
-            table.add_row(
-                str(row[0]),
-                str(row[1]),
-                str(row[2]),
-                str(row[3]),
-                str(row[4]),
-                str(row[5]),
-                str(row[6]),
-                str(row[7])
-            )
+        plt.figure(figsize=(9,5))
+        plt.bar(flight_ids, available_seats)
 
-        console.print(table)
+        plt.title("Monthly Flight Report")
+        plt.xlabel("Flight ID")
+        plt.ylabel("Available Seats")
+
+        for i, value in enumerate(available_seats):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.grid(axis="y")
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
+
+def yearly_flight_report():
+
+    heading("YEARLY FLIGHT REPORT")
+
+    try:
+
+        year = input("Enter Year (YYYY) : ")
+
+        cursor.execute("""
+        SELECT
+            flight_id,
+            airline_id,
+            source_airport_id,
+            destination_airport_id,
+            departure_date,
+            departure_time,
+            fare,
+            available_seats
+        FROM flights
+        WHERE substr(departure_date,1,4)=?
+        """,(year,))
+
+        rows = cursor.fetchall()
+
+        if not rows:
+            print("No Flight Found.")
+            return
+
+        flight_ids = []
+        available_seats = []
+
+        for row in rows:
+            flight_ids.append(str(row[0]))
+            available_seats.append(row[7])
+
+        plt.figure(figsize=(9,5))
+        plt.bar(flight_ids, available_seats)
+
+        plt.title("Yearly Flight Report")
+        plt.xlabel("Flight ID")
+        plt.ylabel("Available Seats")
+
+        for i, value in enumerate(available_seats):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.grid(axis="y")
+        plt.show()
+
+    except Exception as e:
+        print("Error :", e)      
 
 # ==========================================================
 # PASSENGER REPORT MENU
@@ -212,15 +254,13 @@ def monthly_flight_report():
 
 def passenger_report_menu():
     while True:
-        heading("PASSENGER REPORT")
         print("1. All Passengers")
         print("2. Passenger by Flight")
-        print("3. Back")
-
+        print("3. Passenger Age Distribution")
+        print("4. Back")
         try:
 
             ch = int(input("Enter Choice : "))
-
             match ch:
 
                 case 1:
@@ -230,6 +270,9 @@ def passenger_report_menu():
                     passenger_by_flight_report()
 
                 case 3:
+                    passenger_age_distribution()
+
+                case 4:
                     break
 
                 case _:
@@ -262,26 +305,24 @@ def all_passengers_report():
         if not rows:
             print("No Passenger Found.")
             return
-
-        table = Table(title="All Passengers")
-
-        table.add_column("Passenger ID")
-        table.add_column("Passenger Name")
-        table.add_column("Age")
-        table.add_column("Gender")
-        table.add_column("Phone")
-
+        gender = {}
         for row in rows:
+            if row[3] in gender:
+                gender[row[3]] += 1
+            else:
+                gender[row[3]] = 1
 
-            table.add_row(
-                str(row[0]),
-                row[1],
-                str(row[2]),
-                row[3],
-                row[4]
-            )
+        plt.figure(figsize=(6,6))
 
-        console.print(table)
+        plt.pie(
+            gender.values(),
+            labels=gender.keys(),
+            autopct="%1.1f%%",
+            startangle=90
+        )
+
+        plt.title("Passenger Gender Distribution")
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
@@ -292,30 +333,26 @@ def all_passengers_report():
 # ==========================================================
 
 def passenger_by_flight_report():
+
     heading("PASSENGER BY FLIGHT REPORT")
+
     try:
 
         flight_id = int(input("Enter Flight ID : "))
 
         cursor.execute("""
         SELECT
-
-        passengers.passenger_id,
-        passengers.passenger_name,
-        passengers.age,
-        passengers.gender,
-        passengers.phone,
-        bookings.seat_no,
-        bookings.status
-
+            passengers.passenger_id,
+            passengers.passenger_name,
+            passengers.age,
+            passengers.gender,
+            passengers.phone,
+            bookings.seat_no,
+            bookings.status
         FROM passengers
-
         INNER JOIN bookings
-
         ON passengers.passenger_id = bookings.passenger_id
-
         WHERE bookings.flight_id = ?
-
         """, (flight_id,))
 
         rows = cursor.fetchall()
@@ -324,33 +361,80 @@ def passenger_by_flight_report():
             print("No Passenger Found For This Flight.")
             return
 
-        table = Table(title=f"Passengers of Flight {flight_id}")
-
-        table.add_column("Passenger ID")
-        table.add_column("Passenger Name")
-        table.add_column("Age")
-        table.add_column("Gender")
-        table.add_column("Phone")
-        table.add_column("Seat No")
-        table.add_column("Status")
+        gender = {}
 
         for row in rows:
+            if row[3] in gender:
+                gender[row[3]] += 1
+            else:
+                gender[row[3]] = 1
 
-            table.add_row(
-                str(row[0]),
-                row[1],
-                str(row[2]),
-                row[3],
-                row[4],
-                row[5],
-                row[6]
-            )
+        plt.figure(figsize=(6,5))
 
-        console.print(table)
+        plt.bar(gender.keys(), gender.values())
+
+        plt.title(f"Passengers in Flight {flight_id}")
+        plt.xlabel("Gender")
+        plt.ylabel("Passengers")
+
+        # Show only integer values on Y-axis
+        ax = plt.gca()
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        for i, value in enumerate(gender.values()):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.grid(axis="y", linestyle="--")
+
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
 
+
+# ==========================================================
+# PASSENGER AGE DISTRIBUTION CHART
+# ==========================================================
+def passenger_age_distribution():
+
+    heading("PASSENGER AGE DISTRIBUTION")
+
+    try:
+
+        cursor.execute("""
+        SELECT age
+        FROM passengers
+        """)
+
+        rows = cursor.fetchall()
+
+        if not rows:
+            print("No Passenger Found.")
+            return
+
+        ages = []
+
+        for row in rows:
+            ages.append(row[0])
+
+        plt.figure(figsize=(8,5))
+
+        plt.hist(
+            ages,
+            bins=5,
+            edgecolor="black"
+        )
+
+        plt.title("Passenger Age Distribution")
+        plt.xlabel("Age")
+        plt.ylabel("Number of Passengers")
+
+        plt.grid(axis="y", linestyle="--")
+
+        plt.show()
+
+    except Exception as e:
+        print("Error :", e)
 # ==========================================================
 # BOOKING REPORT MENU
 # ==========================================================
@@ -411,26 +495,34 @@ def daily_booking_report():
         if not rows:
             print("No Booking Found.")
             return
-        table = Table(title="Daily Booking Report")
-        table.add_column("Booking ID")
-        table.add_column("Passenger ID")
-        table.add_column("Flight ID")
-        table.add_column("Booking Date")
-        table.add_column("Seat No")
-        table.add_column("Status")
+        status = []
+        count = []
 
-        for row in rows:
+        cursor.execute("""
+        SELECT status, COUNT(*)
+        FROM bookings
+        WHERE booking_date = ?
+        GROUP BY status
+        """, (booking_date,))
 
-            table.add_row(
-                str(row[0]),
-                str(row[1]),
-                str(row[2]),
-                row[3],
-                row[4],
-                row[5]
-            )
+        chart_data = cursor.fetchall()
 
-        console.print(table)
+        for row in chart_data:
+            status.append(row[0])
+            count.append(row[1])
+
+        plt.figure(figsize=(7,5))
+        plt.bar(status, count, edgecolor="black")
+
+        plt.title(f"Daily Bookings ({booking_date})")
+        plt.xlabel("Booking Status")
+        plt.ylabel("Number of Bookings")
+
+        for i, value in enumerate(count):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.grid(axis="y", linestyle="--")
+        plt.show()
     except Exception as e:
         print("Error :", e)
 # ==========================================================
@@ -438,50 +530,55 @@ def daily_booking_report():
 # ==========================================================
 
 def monthly_booking_report():
+
     heading("MONTHLY BOOKING REPORT")
+
     try:
+
         month = input("Enter Month (YYYY-MM) : ")
+
+        dates = []
+        total_bookings = []
+
         cursor.execute("""
         SELECT
-        booking_id,
-        passenger_id,
-        flight_id,
-        booking_date,
-        seat_no,
-        status
+            booking_date,
+            COUNT(*)
         FROM bookings
         WHERE substr(booking_date,1,7)=?
+        GROUP BY booking_date
+        ORDER BY booking_date
         """, (month,))
-        rows = cursor.fetchall()
-        if not rows:
+
+        chart_data = cursor.fetchall()
+
+        if not chart_data:
             print("No Booking Found.")
             return
-        table = Table(title="Monthly Booking Report")
 
-        table.add_column("Booking ID")
-        table.add_column("Passenger ID")
-        table.add_column("Flight ID")
-        table.add_column("Booking Date")
-        table.add_column("Seat No")
-        table.add_column("Status")
+        for row in chart_data:
+            dates.append(row[0])
+            total_bookings.append(row[1])
 
-        for row in rows:
+        plt.figure(figsize=(10,5))
 
-            table.add_row(
-                str(row[0]),
-                str(row[1]),
-                str(row[2]),
-                row[3],
-                row[4],
-                row[5]
-            )
+        plt.bar(dates, total_bookings)
 
-        console.print(table)
+        plt.title(f"Monthly Booking Report ({month})")
+        plt.xlabel("Booking Date")
+        plt.ylabel("Number of Bookings")
+
+        for i, value in enumerate(total_bookings):
+            plt.text(i, value, str(value), ha="center")
+
+        plt.xticks(rotation=45)
+        plt.grid(axis="y", linestyle="--")
+        plt.tight_layout()
+
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
-
-
 # ==========================================================
 # 7.3.3 CANCELLED BOOKING REPORT
 # ==========================================================
@@ -508,28 +605,48 @@ def cancelled_booking_report():
             print("No Cancelled Bookings Found.")
             return
 
-        table = Table(title="Cancelled Booking Report")
+        # ---------------- CANCELLED BOOKING CHART ----------------
 
-        table.add_column("Booking ID")
-        table.add_column("Passenger ID")
-        table.add_column("Flight ID")
-        table.add_column("Booking Date")
-        table.add_column("Seat No")
-        table.add_column("Status")
 
-        for row in rows:
 
-            table.add_row(
-                str(row[0]),
-                str(row[1]),
-                str(row[2]),
-                row[3],
-                row[4],
-                row[5]
-            )
+        dates = []
+        cancelled = []
 
-        console.print(table)
+        cursor.execute("""
+        SELECT
+            booking_date,
+            COUNT(*)
+        FROM bookings
+        WHERE status = 'Cancelled'
+        GROUP BY booking_date
+        ORDER BY booking_date
+        """)
 
+        chart_data = cursor.fetchall()
+
+        if chart_data:
+
+            for row in chart_data:
+                dates.append(row[0])
+                cancelled.append(row[1])
+
+            plt.figure(figsize=(8,5))
+
+            plt.bar(dates, cancelled, edgecolor="black")
+
+            plt.title("Cancelled Bookings Report")
+            plt.xlabel("Booking Date")
+            plt.ylabel("Number of Cancelled Bookings")
+
+            for i, value in enumerate(cancelled):
+                plt.text(i, value, str(value), ha="center")
+
+            plt.grid(axis="y", linestyle="--")
+
+            plt.xticks(rotation=45)
+
+            plt.tight_layout()
+            plt.show()
     except Exception as e:
         print("Error :", e)   
 # ==========================================================
@@ -619,6 +736,24 @@ def daily_revenue_report():
 
         console.print(table)
 
+
+        if row and row[2] is not None:
+            plt.figure(figsize=(6,5))
+
+            labels = ["Revenue"]
+            values = [row[2]]
+
+            plt.bar(labels, values)
+            plt.title(f"Daily Revenue ({payment_date})")
+            plt.xlabel("Revenue")
+            plt.ylabel("Amount (₹)")
+
+            for i, value in enumerate(values):
+                plt.text(i, value, f"₹{value}", ha="center")
+
+            plt.show()
+        
+        
     except Exception as e:
         print("Error :", e)
 
@@ -628,54 +763,56 @@ def daily_revenue_report():
 # ==========================================================
 
 def monthly_revenue_report():
+
     heading("MONTHLY REVENUE REPORT")
+
     try:
 
         month = input("Enter Month (YYYY-MM) : ")
 
+        dates = []
+        revenue = []
+
         cursor.execute("""
         SELECT
-
-        substr(payment_date,1,7),
-        COUNT(payment_id),
-        SUM(amount)
-
+            payment_date,
+            SUM(amount)
         FROM payments
-
         WHERE substr(payment_date,1,7)=?
         AND payment_status='Success'
+        GROUP BY payment_date
+        ORDER BY payment_date
         """, (month,))
 
-        row = cursor.fetchone()
+        chart_data = cursor.fetchall()
 
-        table = Table(title="Monthly Revenue Report")
+        if not chart_data:
+            print("No Revenue Found.")
+            return
 
-        table.add_column("Month")
-        table.add_column("Total Payments")
-        table.add_column("Revenue")
+        for row in chart_data:
+            dates.append(row[0])
+            revenue.append(row[1])
 
-        if row and row[2] is not None:
+        plt.figure(figsize=(10,5))
 
-            table.add_row(
-                row[0],
-                str(row[1]),
-                "₹ " + str(row[2])
-            )
+        plt.bar(dates, revenue)
 
-        else:
+        plt.title(f"Monthly Revenue Report ({month})")
+        plt.xlabel("Payment Date")
+        plt.ylabel("Revenue (₹)")
 
-            table.add_row(
-                month,
-                "0",
-                "₹ 0"
-            )
+        for i, value in enumerate(revenue):
+            plt.text(i, value, f"₹{value}", ha="center")
 
-        console.print(table)
+        plt.xticks(rotation=45)
+        plt.grid(axis="y", linestyle="--")
+        plt.tight_layout()
+
+        plt.show()
 
     except Exception as e:
         print("Error :", e)
-
-
 # ==========================================================
 # 7.4.3 YEARLY REVENUE REPORT
 # ==========================================================
@@ -724,6 +861,42 @@ def yearly_revenue_report():
             )
 
         console.print(table)
+                # ---------------- YEARLY REVENUE CHART ----------------
+
+        years = []
+        revenue = []
+
+        cursor.execute("""
+        SELECT
+            substr(payment_date,1,4),
+            SUM(amount)
+        FROM payments
+        WHERE payment_status = 'Success'
+        GROUP BY substr(payment_date,1,4)
+        ORDER BY substr(payment_date,1,4)
+        """)
+
+        chart_data = cursor.fetchall()
+
+        if chart_data:
+
+            for row in chart_data:
+                years.append(row[0])
+                revenue.append(row[1])
+
+            plt.figure(figsize=(7,5))
+
+            plt.bar(years, revenue, edgecolor="black")
+
+            plt.title("Yearly Revenue Report")
+            plt.xlabel("Year")
+            plt.ylabel("Revenue (₹)")
+
+            for i, value in enumerate(revenue):
+                plt.text(i, value, f"₹{value}", ha="center")
+
+            plt.grid(axis="y", linestyle="--")
+            plt.show()
 
     except Exception as e:
         print("Error :", e)             

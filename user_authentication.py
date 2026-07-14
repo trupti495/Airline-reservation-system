@@ -18,46 +18,103 @@ cursor = conn.cursor()
 # 1.1 Register User
 # ==========================================
 def register_user():
-    heading("REGISTER USER")
+
+    heading("USER REGISTRATION")
+
     try:
-        username = input("Enter Username : ")
+        # ---------------- Username ----------------
+        username = input("Enter Username : ").strip()
+
         if username == "":
             print("Username cannot be empty.")
             return
 
-        password = getpass("Enter Password : ")
+        # Check if username already exists
+        cursor.execute("""
+            SELECT 1
+            FROM users
+            WHERE LOWER(username) = LOWER(?)
+        """, (username,))
+
+        if cursor.fetchone():
+            print("Username already exists. Please choose another username.")
+            return
+
+        # ---------------- Password ----------------
+        password = getpass("Enter Password : ").strip()
+
         if password == "":
             print("Password cannot be empty.")
             return
 
-        print("\nSelect Role")
-        print("1. Admin")
-        print("2. User")
+        if len(password) < 6:
+            print("Password must contain at least 6 characters.")
+            return
 
-        ch = int(input("Enter Choice : "))
+        # ---------------- Passenger Details ----------------
+        print("\nEnter Passenger Details")
 
-        match ch:
-            case 1:
-                role = "admin"
-            case 2:
-                role = "user"
-            case _:
-                print("Invalid Role.")
-                return
+        age = int(input("Age : "))
 
-        cursor.execute(
-            """
+        if age <= 0:
+            print("Invalid Age.")
+            return
+
+        gender = input("Gender (Male/Female/Other) : ").strip().title()
+
+        if gender not in ["Male", "Female", "Other"]:
+            print("Invalid Gender.")
+            return
+
+        phone = input("Phone Number : ").strip()
+
+        if not phone.isdigit() or len(phone) != 10:
+            print("Phone Number must contain exactly 10 digits.")
+            return
+
+        email = input("Email Address : ").strip()
+
+
+        # ---------------- Insert into Users ----------------
+        role = "user"
+
+        cursor.execute("""
             INSERT INTO users(username, password, role)
-            VALUES(?, ?, ?)
-            """,
-            (username, password, role)
-        )
+            VALUES (?, ?, ?)
+        """, (username, password, role))
+
+        # ---------------- Insert into Passengers ----------------
+        cursor.execute("""
+    INSERT INTO passengers
+    (
+        passenger_name,
+        age,
+        gender,
+        phone
+    )
+    VALUES (?, ?, ?, ?)
+""", (
+    username,
+    age,
+    gender,
+    phone,
+))
         conn.commit()
-        print("Registration Successful.")
+
+        passenger_id = cursor.lastrowid
+
+        heading("REGISTRATION SUCCESSFUL")
+
+        print("User Account Created Successfully.")
+        print("Username       :", username)
+        print("Passenger ID   :", passenger_id)
+        print("Please save your Passenger ID for future bookings.")
 
     except ValueError:
-        print("Enter numeric choice only.")
+        print("Please enter valid numeric values.")
+
     except Exception as e:
+        conn.rollback()
         print("Error :", e)
 
 
@@ -125,20 +182,44 @@ def login_user():
     username = input("Enter Username : ")
     password = getpass("Enter Password : ")
 
+    # Check user login
     cursor.execute("""
-        SELECT * FROM users
-        WHERE username=? AND password=? AND LOWER(role)='user'
+        SELECT *
+        FROM users
+        WHERE username = ? AND password = ? AND LOWER(role) = 'user'
     """, (username, password))
 
-    row = cursor.fetchone()
+    user = cursor.fetchone()
 
-    if row:
-        print("User Login Successful.")
-        return "user"
+    if user:
 
-    print("Invalid Username or Password.")
-    return None
+        # Fetch Passenger ID
+        cursor.execute("""
+        SELECT passenger_id
+        FROM passengers
+        WHERE LOWER(passenger_name) = LOWER(?)
+        """, (username,))
 
+        passenger = cursor.fetchone()
+
+        print("\n====================================")
+        print("     USER LOGIN SUCCESSFUL")
+        print("====================================")
+
+        if passenger:
+            print("Your Passenger ID :", passenger[0])
+            print("Please keep this Passenger ID for booking tickets.")
+            return "user"
+        else:
+            print("Passenger record not found.")
+
+        print("====================================\n")
+
+        return None
+
+    else:
+        print("Invalid Username or Password.")
+        return None
 # ==========================================
 # 1.3 Logout
 # ==========================================
