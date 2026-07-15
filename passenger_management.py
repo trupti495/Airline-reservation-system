@@ -27,7 +27,7 @@ def add_passenger():
         username = input("Enter Username : ").strip()
         password = input("Enter Password : ").strip()
 
-        role = "user"
+        role=input("enter role:")
 
         # ---------------- Validation ----------------
 
@@ -203,12 +203,13 @@ def view_passenger_by_name():
 
     try:
 
-        passenger_name = input("Enter Passenger Name : ").strip().title()
+        passenger_name = input("Enter Passenger Name : ").strip()
 
-        cursor.execute(
-            "SELECT * FROM passengers WHERE passenger_name=?",
-            (passenger_name,)
-        )
+        cursor.execute("""
+            SELECT *
+            FROM passengers
+            WHERE LOWER(passenger_name) LIKE ?
+        """, ('%' + passenger_name.lower() + '%',))
 
         passengers = cursor.fetchall()
 
@@ -223,7 +224,6 @@ def view_passenger_by_name():
             table.add_column("Phone", justify="center")
 
             for passenger in passengers:
-
                 table.add_row(
                     str(passenger[0]),
                     passenger[1],
@@ -235,7 +235,7 @@ def view_passenger_by_name():
             console.print(table)
 
         else:
-            print("Passenger Name Not Found!")
+            print("Passenger Not Found!")
 
     except Exception as e:
         print("Error :", e)

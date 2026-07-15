@@ -14,14 +14,13 @@ def heading(title):
         style="bright_blue"
     )
     print()
-conn = get_connection()
-cursor = conn.cursor()
 
 # ==========================================
 # 1.1 Register User
 # ==========================================
 def register_user():
-
+    conn = get_connection()
+    cursor = conn.cursor()
     heading("USER REGISTRATION")
 
     try:
@@ -119,7 +118,9 @@ def register_user():
     except Exception as e:
         conn.rollback()
         print("Error :", e)
-
+    finally:
+          cursor.close()
+          conn.close()
 
 # ==========================================
 # 1.2 Login Menu
@@ -158,7 +159,8 @@ def login():
 # 1.2.1 Login as Admin
 # ==========================================
 def login_admin():
-
+    conn = get_connection()
+    cursor = conn.cursor()
     heading("ADMIN LOGIN")
 
     username = input("Enter Username : ").strip()
@@ -224,10 +226,14 @@ Airline Reservation System
     else:
         print("\nInvalid OTP.")
         return None
+    cursor.close()
+    conn.close()
 # ==========================================
 # 1.2.2 Login as User
 # ==========================================
 def login_user():
+    conn = get_connection()
+    cursor = conn.cursor()
     heading("USER LOGIN")
 
     username = input("Enter Username : ")
@@ -271,10 +277,12 @@ def login_user():
     else:
         print("Invalid Username or Password.")
         return None
+
+    cursor.close()
+    conn.close()
 # ==========================================
 # 1.3 Logout
 # ==========================================
 def logout():
     heading("LOGOUT")
     print("Logout Successful.")
-
