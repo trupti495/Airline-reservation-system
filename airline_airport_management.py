@@ -22,19 +22,33 @@ cursor = conn.cursor()
 def add_airline():
     heading("ADD AIRLINE")
 
-    airline_name = input("Enter Airline Name : ")
+    airline_name = input("Enter Airline Name : ").strip()
 
-    cursor.execute(
-        """
-        INSERT INTO airlines(airline_name)
-        VALUES(?)
-        """,
-        (airline_name,)
-    )
+    if not airline_name:
+        print("Airline Name cannot be empty!")
+        return
 
-    conn.commit()
-    print("Airline Added Successfully!")
+    try:
+        cursor.execute(
+            """
+            INSERT INTO airlines(airline_name)
+            VALUES(?)
+            """,
+            (airline_name,)
+        )
 
+        conn.commit()
+        print("Airline Added Successfully!")
+
+    except sqlite3.IntegrityError:
+        print("Airline already exists!")
+
+    except Exception as e:
+        print("Error:", e)
+
+# =====================================================
+# VIEW AIRLINES
+# =====================================================
 # =====================================================
 # VIEW AIRLINES
 # =====================================================
@@ -42,93 +56,228 @@ def view_airlines():
 
     while True:
         heading("VIEW AIRLINES")
+
         print("1. View All Airlines")
         print("2. Search by Airline ID")
         print("3. Search by Airline Name")
         print("4. Back")
 
-        choice = input("Enter Choice : ")
+        choice = input("Enter Choice : ").strip()
 
+        # =====================================================
+        # VIEW ALL AIRLINES
+        # =====================================================
         if choice == "1":
-            cursor.execute("SELECT airline_id, airline_name FROM airlines")
-            rows = cursor.fetchall()
 
-            if rows:
-                table = Table(title="All Airlines", show_lines=True)
-                table.add_column("Airline ID", style="cyan", justify="center")
-                table.add_column("Airline Name", style="green")
-                for row in rows:
-                    table.add_row(str(row[0]), row[1])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                cursor.execute(
+                    """
+                    SELECT airline_id, airline_name
+                    FROM airlines
+                    """
+                )
 
+                rows = cursor.fetchall()
+
+                if rows:
+                    table = Table(
+                        title="All Airlines",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airline ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airline Name",
+                        style="green"
+                    )
+
+                    for row in rows:
+                        table.add_row(
+                            str(row[0]),
+                            row[1]
+                        )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except sqlite3.Error as e:
+                print(f"Database Error: {e}")
+
+        # =====================================================
+        # SEARCH BY AIRLINE ID
+        # =====================================================
         elif choice == "2":
-            airline_id = int(input("Enter Airline ID : "))
-            cursor.execute(
-                "SELECT airline_id, airline_name FROM airlines WHERE airline_id=?",
-                (airline_id,)
-            )
-            row = cursor.fetchone()
 
-            if row:
-                table = Table(title="Airline Details", show_lines=True)
-                table.add_column("Airline ID", style="cyan", justify="center")
-                table.add_column("Airline Name", style="green")
-                table.add_row(str(row[0]), row[1])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                airline_id = int(
+                    input("Enter Airline ID : ")
+                )
 
+                cursor.execute(
+                    """
+                    SELECT airline_id, airline_name
+                    FROM airlines
+                    WHERE airline_id = ?
+                    """,
+                    (airline_id,)
+                )
+
+                row = cursor.fetchone()
+
+                if row:
+                    table = Table(
+                        title="Airline Details",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airline ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airline Name",
+                        style="green"
+                    )
+
+                    table.add_row(
+                        str(row[0]),
+                        row[1]
+                    )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except ValueError:
+                print(
+                    "Invalid Airline ID! "
+                    "Please enter a number."
+                )
+
+            except sqlite3.Error as e:
+                print(
+                    f"Database Error: {e}"
+                )
+
+        # =====================================================
+        # SEARCH BY AIRLINE NAME
+        # =====================================================
         elif choice == "3":
-            name = input("Enter Airline Name : ")
-            cursor.execute(
-                "SELECT airline_id, airline_name FROM airlines WHERE airline_name LIKE?",
-                ('%' + name + '%',)
-            )
-            rows = cursor.fetchall()
 
-            if rows:
-                table = Table(title=f"Search Results for '{name}'", show_lines=True)
-                table.add_column("Airline ID", style="cyan", justify="center")
-                table.add_column("Airline Name", style="green")
-                for row in rows:
-                    table.add_row(str(row[0]), row[1])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                name = input(
+                    "Enter Airline Name : "
+                ).strip()
 
+                if not name:
+                    print(
+                        "Airline Name cannot be empty!"
+                    )
+                    continue
+
+                cursor.execute(
+                    """
+                    SELECT airline_id, airline_name
+                    FROM airlines
+                    WHERE airline_name LIKE ?
+                    """,
+                    ('%' + name + '%',)
+                )
+
+                rows = cursor.fetchall()
+
+                if rows:
+                    table = Table(
+                        title=f"Search Results for '{name}'",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airline ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airline Name",
+                        style="green"
+                    )
+
+                    for row in rows:
+                        table.add_row(
+                            str(row[0]),
+                            row[1]
+                        )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except sqlite3.Error as e:
+                print(
+                    f"Database Error: {e}"
+                )
+
+        # =====================================================
+        # BACK
+        # =====================================================
         elif choice == "4":
             break
 
+        # =====================================================
+        # INVALID CHOICE
+        # =====================================================
         else:
             print("Invalid Choice!")
-
 # =====================================================
 # UPDATE AIRLINE
 # =====================================================
 def update_airline():
     heading("UPDATE AIRLINE")
 
-    airline_id = int(input("Enter Airline ID : "))
-    new_name = input("Enter New Airline Name : ")
+    try:
+        airline_id = int(input("Enter Airline ID : "))
+        new_name = input("Enter New Airline Name : ").strip()
 
-    cursor.execute(
-        """
-        UPDATE airlines
-        SET airline_name=?
-        WHERE airline_id=?
-        """,
-        (new_name, airline_id)
-    )
+        if not new_name:
+            print("Airline Name cannot be empty!")
+            return
 
-    conn.commit()
+        cursor.execute(
+            """
+            UPDATE airlines
+            SET airline_name=?
+            WHERE airline_id=?
+            """,
+            (new_name, airline_id)
+        )
 
-    if cursor.rowcount:
-        print("Airline Updated Successfully!")
-    else:
-        print("Airline ID Not Found!")
+        conn.commit()
 
+        if cursor.rowcount:
+            print("Airline Updated Successfully!")
+        else:
+            print("Airline ID Not Found!")
+
+    except ValueError:
+        print("Invalid Airline ID! Please enter a number.")
+
+    except sqlite3.IntegrityError:
+        print("Airline Name already exists!")
+
+    except Exception as e:
+        print("Error:", e)
 # =====================================================
 # DELETE AIRLINE
 # =====================================================
@@ -170,86 +319,237 @@ def delete_airline():
 # =====================================================
 def add_airport():
     heading("ADD AIRPORT")
-    airport_name = input("Enter Airport Name : ")
-    city = input("Enter City : ")
 
-    cursor.execute(
-        """
-        INSERT INTO airports
-        (airport_name, city)
-        VALUES(?,?)
-        """,
-        (airport_name, city)
-    )
+    airport_name = input("Enter Airport Name : ").strip()
+    city = input("Enter City : ").strip()
 
-    conn.commit()
-    print("Airport Added Successfully!")
+    if not airport_name or not city:
+        print("Airport Name and City cannot be empty!")
+        return
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO airports
+            (airport_name, city)
+            VALUES(?, ?)
+            """,
+            (airport_name, city)
+        )
+
+        conn.commit()
+        print("Airport Added Successfully!")
+
+    except sqlite3.IntegrityError as e:
+        print("Database Error:", e)
+
+    except Exception as e:
+        print("Error:", e)
 
 # =====================================================
 # VIEW AIRPORTS
 # =====================================================
+# =====================================================
+# VIEW AIRPORTS
+# =====================================================
 def view_airports():
+
     while True:
         heading("VIEW AIRPORTS")
+
         print("1. View All Airports")
         print("2. Search by Airport ID")
         print("3. Search by Airport Name")
         print("4. Back")
 
-        choice = input("Enter Choice : ")
+        choice = input("Enter Choice : ").strip()
 
+        # =====================================================
+        # VIEW ALL AIRPORTS
+        # =====================================================
         if choice == "1":
-            cursor.execute("SELECT airport_id, airport_name, city FROM airports")
-            rows = cursor.fetchall()
 
-            if rows:
-                table = Table(title="All Airports", show_lines=True)
-                table.add_column("Airport ID", style="cyan", justify="center")
-                table.add_column("Airport Name", style="green")
-                table.add_column("City", style="yellow")
-                for row in rows:
-                    table.add_row(str(row[0]), row[1], row[2])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                cursor.execute(
+                    """
+                    SELECT airport_id, airport_name, city
+                    FROM airports
+                    """
+                )
 
+                rows = cursor.fetchall()
+
+                if rows:
+                    table = Table(
+                        title="All Airports",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airport ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airport Name",
+                        style="green"
+                    )
+
+                    table.add_column(
+                        "City",
+                        style="yellow"
+                    )
+
+                    for row in rows:
+                        table.add_row(
+                            str(row[0]),
+                            row[1],
+                            row[2]
+                        )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except sqlite3.Error as e:
+                print(f"Database Error: {e}")
+
+        # =====================================================
+        # SEARCH BY AIRPORT ID
+        # =====================================================
         elif choice == "2":
-            airport_id = int(input("Enter Airport ID : "))
-            cursor.execute(
-                "SELECT airport_id, airport_name, city FROM airports WHERE airport_id=?",
-                (airport_id,)
-            )
-            row = cursor.fetchone()
 
-            if row:
-                table = Table(title="Airport Details", show_lines=True)
-                table.add_column("Airport ID", style="cyan", justify="center")
-                table.add_column("Airport Name", style="green")
-                table.add_column("City", style="yellow")
-                table.add_row(str(row[0]), row[1], row[2])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                airport_id = int(
+                    input("Enter Airport ID : ")
+                )
 
+                cursor.execute(
+                    """
+                    SELECT airport_id, airport_name, city
+                    FROM airports
+                    WHERE airport_id = ?
+                    """,
+                    (airport_id,)
+                )
+
+                row = cursor.fetchone()
+
+                if row:
+                    table = Table(
+                        title="Airport Details",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airport ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airport Name",
+                        style="green"
+                    )
+
+                    table.add_column(
+                        "City",
+                        style="yellow"
+                    )
+
+                    table.add_row(
+                        str(row[0]),
+                        row[1],
+                        row[2]
+                    )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except ValueError:
+                print(
+                    "Invalid Airport ID! "
+                    "Please enter a number."
+                )
+
+            except sqlite3.Error as e:
+                print(
+                    f"Database Error: {e}"
+                )
+
+        # =====================================================
+        # SEARCH BY AIRPORT NAME
+        # =====================================================
         elif choice == "3":
-            name = input("Enter Airport Name : ")
-            cursor.execute(
-                "SELECT airport_id, airport_name, city FROM airports WHERE airport_name LIKE?",
-                ('%' + name + '%',)
-            )
-            rows = cursor.fetchall()
 
-            if rows:
-                table = Table(title=f"Search Results for '{name}'", show_lines=True)
-                table.add_column("Airport ID", style="cyan", justify="center")
-                table.add_column("Airport Name", style="green")
-                table.add_column("City", style="yellow")
-                for row in rows:
-                    table.add_row(str(row[0]), row[1], row[2])
-                console.print(table)
-            else:
-                print("No Record Found!")
+            try:
+                name = input(
+                    "Enter Airport Name : "
+                ).strip()
 
+                if not name:
+                    print(
+                        "Airport Name cannot be empty!"
+                    )
+                    continue
+
+                cursor.execute(
+                    """
+                    SELECT airport_id, airport_name, city
+                    FROM airports
+                    WHERE airport_name LIKE ?
+                    """,
+                    ('%' + name + '%',)
+                )
+
+                rows = cursor.fetchall()
+
+                if rows:
+                    table = Table(
+                        title=f"Search Results for '{name}'",
+                        show_lines=True
+                    )
+
+                    table.add_column(
+                        "Airport ID",
+                        style="cyan",
+                        justify="center"
+                    )
+
+                    table.add_column(
+                        "Airport Name",
+                        style="green"
+                    )
+
+                    table.add_column(
+                        "City",
+                        style="yellow"
+                    )
+
+                    for row in rows:
+                        table.add_row(
+                            str(row[0]),
+                            row[1],
+                            row[2]
+                        )
+
+                    console.print(table)
+
+                else:
+                    print("No Record Found!")
+
+            except sqlite3.Error as e:
+                print(
+                    f"Database Error: {e}"
+                )
+
+        # =====================================================
+        # BACK
+        # =====================================================
         elif choice == "4":
             break
 
@@ -262,25 +562,35 @@ def view_airports():
 def update_airport():
     heading("UPDATE AIRPORT")
 
-    airport_id = int(input("Enter Airport ID : "))
-    city = input("Enter New City : ")
+    try:
+        airport_id = int(input("Enter Airport ID : "))
+        city = input("Enter New City : ").strip()
 
-    cursor.execute(
-        """
-        UPDATE airports
-        SET city=?
-        WHERE airport_id=?
-        """,
-        (city, airport_id)
-    )
+        if not city:
+            print("City cannot be empty!")
+            return
 
-    conn.commit()
+        cursor.execute(
+            """
+            UPDATE airports
+            SET city=?
+            WHERE airport_id=?
+            """,
+            (city, airport_id)
+        )
 
-    if cursor.rowcount:
-        print("Airport Updated Successfully!")
-    else:
-        print("Airport ID Not Found!")
+        conn.commit()
 
+        if cursor.rowcount:
+            print("Airport Updated Successfully!")
+        else:
+            print("Airport ID Not Found!")
+
+    except ValueError:
+        print("Invalid Airport ID! Please enter a number.")
+
+    except Exception as e:
+        print("Error:", e)
 # =====================================================
 # DELETE AIRPORT
 # =====================================================

@@ -18,7 +18,7 @@ def heading(title):
 def send_otp(receiver_email, otp):
 
     sender_email = "shitoletrupti6@gmail.com"
-    app_password = "gkggkjfeenrljdmm"
+    app_password = "hyjspiqilotmban"
 
     msg = EmailMessage()
     msg["Subject"] = "Password Reset OTP"

@@ -1,406 +1,1723 @@
-from datetime import datetime
 from database import get_connection
-from tabulate import tabulate # NEW
 from rich.console import Console
+from rich.table import Table
+from datetime import datetime
+
+
+# ============================================================
+# DATABASE CONNECTION
+# ============================================================
+
+conn = get_connection()
+cursor = conn.cursor()
+
+# Enable Foreign Key Support
+cursor.execute("PRAGMA foreign_keys = ON")
+
+
+# ============================================================
+# RICH CONSOLE
+# ============================================================
 
 console = Console()
 
+
+# ============================================================
+# COMMON HEADING
+# Only headings are colored
+# ============================================================
+
 def heading(title):
+
     print()
+
     console.rule(
         f"[bold bright_yellow]{title}[/bold bright_yellow]",
         style="bright_blue"
     )
+
     print()
-conn = get_connection()
-cursor = conn.cursor()
 
-class BookingManagement:
 
-    def __init__(self):
-        self.passenger_id = None
-        self.flight_id = None
+# ============================================================
+# 1. SEARCH PASSENGER
+# ============================================================
 
-    # Main Menu
-    def main(self): 
+def search_passenger():
 
-      try:
-        while True:
-            heading("BOOKING MANAGEMENT")
-            print("1. Book Ticket")
-            print("2. View Booking")
-            print("3. Cancel Booking")
-            print("4. Booking History")
-            print("5. Exit")
+    heading("SEARCH PASSENGER")
 
-            choice = int(input("Enter Choice : "))
-            match choice:
-             case 1:
-              self.book_ticket()
-             case 2:
-              self.view_booking()
-             case 3:
-              self.cancel_booking()
-             case 4:
-              self.booking_history()
-             case 5:
-              break
-             case _:
-              print("Invalid Choice")
+    passenger_id = input(
+        "Enter Passenger ID : "
+    ).strip()
 
-      except ValueError:
-        print("Error: Please enter a valid number") 
+    if not passenger_id.isdigit():
 
-    # 4.1 Book Ticket
-    def book_ticket(self):
-        while True:
-            try:
-                heading("BOOK TICKET")
-                print("1. Search Passenger")
-                print("2. Search Flight")
-                print("3. Confirm Booking")
-                print("4. Back")
-                ch = int(input("Enter your choice: "))
+        print("Invalid Passenger ID.")
+        return None
 
-                match ch:
-                    case 1: self.search_passenger()
-                    case 2: self.search_flight()
-                    case 3: self.confirm_booking()
-                    case 4: break
-                    case _: print("Invalid Choice")
-            except ValueError:
-                print("Error: Please enter a valid number")
-            except Exception as e:
-                print("An error occurred:", e)
-
-    # 4.1.1 Search Passenger
-    def search_passenger(self):
-        try:
-            heading("SEARCH PASSENGER")
-            pid = input("Enter Passenger ID: ")
-            if pid == "":
-                print("Passenger ID cannot be empty")
-                return
-
-            cursor.execute("SELECT * FROM passengers WHERE passenger_id=?", (pid,))
-            passenger = cursor.fetchone()
-            if passenger:
-                headers = ["ID", "Name", "Age", "Gender", "Phone"]
-                print(tabulate([passenger], headers=headers, tablefmt="grid"))
-                self.passenger_id = pid
-            else:
-                print("Passenger Not Found")
-        except Exception as e:
-            print("Error:", e)
-
-    # 4.1.2 Search Flight
-    def search_flight(self):
-        try:
-            heading("SEARCH FLIGHT")
-            source = input("Enter Source Airport ID: ").strip()
-            destination = input("Enter Destination Airport ID: ").strip()
-            departure_date = input("Enter Departure Date (YYYY-MM-DD): ").strip()
-
-            cursor.execute("""
-                SELECT flight_id, airline_id, source_airport_id,
-                       destination_airport_id, departure_date,
-                       departure_time, fare, available_seats
-                FROM flights
-                WHERE source_airport_id=? AND destination_airport_id=? AND departure_date=?
-            """, (source, destination, departure_date))
-
-            flights = cursor.fetchall()
-
-            if not flights:
-                print("No Flights Available.")
-                return
-
-            headers = ["FlightID", "AirlineID", "Source", "Destination", "Date", "Time", "Fare", "Seats"]
-            print(tabulate(flights, headers=headers, tablefmt="fancy_grid")) # TABULATE
-
-            fid = input("\nEnter Flight ID to Book: ").strip()
-            cursor.execute("SELECT flight_id FROM flights WHERE flight_id=?", (fid,))
-            if cursor.fetchone():
-                self.flight_id = fid
-                print("Flight Selected Successfully")
-            else:
-                print("Invalid Flight ID")
-        except Exception as e:
-            print("Error:", e)
-
-    # 4.1.3 Confirm Booking
-    from datetime import datetime
-
-    def confirm_booking(self):
-     try:
-        heading("CONFIRM BOOKING")
-
-        passenger_id = input("Enter Passenger ID: ").strip()
+    try:
 
         cursor.execute(
-            "SELECT * FROM passengers WHERE passenger_id = ?",
-            (passenger_id,)
+            """
+            SELECT
+                passenger_id,
+                passenger_name,
+                age,
+                gender,
+                phone
+            FROM passengers
+            WHERE passenger_id = ?
+            """,
+            (int(passenger_id),)
         )
 
-        if cursor.fetchone() is None:
-            print("Passenger ID not found.")
+        passenger = cursor.fetchone()
+
+        if not passenger:
+
+            print("Passenger Not Found.")
+            return None
+
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Passenger ID",
+            style="bright_yellow"
+        )
+
+        table.add_column(
+            "Passenger Name",
+            style="bright_cyan"
+        )
+
+        table.add_column("Age")
+        table.add_column("Gender")
+
+        table.add_column(
+            "Phone",
+            style="bright_green"
+        )
+
+        table.add_row(
+            str(passenger[0]),
+            str(passenger[1]),
+            str(passenger[2]),
+            str(passenger[3]),
+            str(passenger[4])
+        )
+
+        console.print(table)
+
+        return passenger[0]
+
+    except Exception as e:
+
+        print(
+            f"Error while searching passenger: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# 2. SEARCH FLIGHT
+# Source is mandatory
+# Destination and Date are optional
+# ============================================================
+
+def search_flight():
+
+    heading("SEARCH FLIGHT")
+
+    source = input(
+        "Enter Source Airport or City : "
+    ).strip()
+
+    if not source:
+
+        print(
+            "Source Airport or City Cannot Be Empty."
+        )
+
+        return None
+
+    destination = input(
+        "Enter Destination Airport or City (optional) : "
+    ).strip()
+
+    departure_date = input(
+        "Enter Departure Date (YYYY-MM-DD) (optional) : "
+    ).strip()
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                f.flight_id,
+                f.flight_number,
+
+                source.airport_name,
+                source.city,
+
+                destination.airport_name,
+                destination.city,
+
+                f.departure_date,
+                f.departure_time,
+
+                f.fare,
+                f.available_seats
+
+            FROM flights f
+
+            JOIN airports source
+                ON f.source_airport_id =
+                   source.airport_id
+
+            JOIN airports destination
+                ON f.destination_airport_id =
+                   destination.airport_id
+
+            WHERE
+            (
+                LOWER(source.airport_name) LIKE LOWER(?)
+                OR
+                LOWER(source.city) LIKE LOWER(?)
+            )
+
+            AND
+            (
+                ? = ''
+                OR
+                LOWER(destination.airport_name) LIKE LOWER(?)
+                OR
+                LOWER(destination.city) LIKE LOWER(?)
+            )
+
+            AND
+            (
+                ? = ''
+                OR
+                f.departure_date = ?
+            )
+
+            AND f.available_seats > 0
+
+            ORDER BY
+                f.departure_date,
+                f.departure_time
+            """,
+            (
+                f"%{source}%",
+                f"%{source}%",
+
+                destination,
+                f"%{destination}%",
+                f"%{destination}%",
+
+                departure_date,
+                departure_date
+            )
+        )
+
+        flights = cursor.fetchall()
+
+        if not flights:
+
+            print(
+                "No Available Flight Found."
+            )
+
+            return None
+
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Flight ID",
+            style="bright_yellow"
+        )
+
+        table.add_column(
+            "Flight No.",
+            style="bright_green"
+        )
+
+        table.add_column(
+            "Source",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Destination",
+            style="bright_cyan"
+        )
+
+        table.add_column("Date")
+        table.add_column("Time")
+
+        table.add_column(
+            "Fare",
+            style="bright_yellow"
+        )
+
+        table.add_column(
+            "Seats",
+            style="bright_green"
+        )
+
+        for flight in flights:
+
+            table.add_row(
+                str(flight[0]),
+                str(flight[1]),
+                f"{flight[2]} ({flight[3]})",
+                f"{flight[4]} ({flight[5]})",
+                str(flight[6]),
+                str(flight[7]),
+                str(flight[8]),
+                str(flight[9])
+            )
+
+        console.print(table)
+
+        flight_id = input(
+            "\nEnter Flight ID to Select : "
+        ).strip()
+
+        if not flight_id.isdigit():
+
+            print(
+                "Invalid Flight ID."
+            )
+
+            return None
+
+        flight_id = int(flight_id)
+
+        valid_flight_ids = [
+            flight[0]
+            for flight in flights
+        ]
+
+        if flight_id not in valid_flight_ids:
+
+            print(
+                "Please Select a Flight ID "
+                "From the Displayed Results."
+            )
+
+            return None
+
+        return flight_id
+
+    except Exception as e:
+
+        print(
+            f"Error while searching flight: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# 3. SELECT SEAT CLASS
+# ============================================================
+
+def select_seat_class(flight_id):
+
+    heading("SELECT SEAT CLASS")
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT DISTINCT
+                seat_class
+            FROM seats
+            WHERE flight_id = ?
+            AND seat_status = 'Available'
+            ORDER BY seat_class
+            """,
+            (flight_id,)
+        )
+
+        classes = cursor.fetchall()
+
+        if not classes:
+
+            print(
+                "No Available Seats Found."
+            )
+
+            return None
+
+        for index, seat_class in enumerate(
+            classes,
+            start=1
+        ):
+
+            print(
+                f"{index}  {seat_class[0]}"
+            )
+
+        print()
+
+        choice = input(
+            "Select Seat Class : "
+        ).strip()
+
+        if not choice.isdigit():
+
+            print(
+                "Invalid Choice."
+            )
+
+            return None
+
+        choice = int(choice)
+
+        if choice < 1 or choice > len(classes):
+
+            print(
+                "Invalid Seat Class Selection."
+            )
+
+            return None
+
+        return classes[
+            choice - 1
+        ][0]
+
+    except Exception as e:
+
+        print(
+            f"Error while selecting seat class: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# 4. SELECT SEAT TYPE
+# ============================================================
+
+def select_seat_type(
+    flight_id,
+    seat_class
+):
+
+    heading("SELECT SEAT TYPE")
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT DISTINCT
+                seat_type
+            FROM seats
+            WHERE flight_id = ?
+            AND seat_class = ?
+            AND seat_status = 'Available'
+            ORDER BY seat_type
+            """,
+            (
+                flight_id,
+                seat_class
+            )
+        )
+
+        seat_types = cursor.fetchall()
+
+        if not seat_types:
+
+            print(
+                "No Available Seat Type Found."
+            )
+
+            return None
+
+        for index, seat_type in enumerate(
+            seat_types,
+            start=1
+        ):
+
+            print(
+                f"{index}  {seat_type[0]}"
+            )
+
+        print()
+
+        choice = input(
+            "Select Seat Type : "
+        ).strip()
+
+        if not choice.isdigit():
+
+            print(
+                "Invalid Choice."
+            )
+
+            return None
+
+        choice = int(choice)
+
+        if choice < 1 or choice > len(seat_types):
+
+            print(
+                "Invalid Seat Type Selection."
+            )
+
+            return None
+
+        return seat_types[
+            choice - 1
+        ][0]
+
+    except Exception as e:
+
+        print(
+            f"Error while selecting seat type: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# 5. SELECT AVAILABLE SEAT
+# ============================================================
+
+def select_seat(
+    flight_id,
+    seat_class,
+    seat_type
+):
+
+    heading("AVAILABLE SEATS")
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                seat_id,
+                seat_no,
+                seat_class,
+                seat_type,
+                seat_status
+            FROM seats
+            WHERE flight_id = ?
+            AND seat_class = ?
+            AND seat_type = ?
+            AND seat_status = 'Available'
+            ORDER BY seat_id
+            """,
+            (
+                flight_id,
+                seat_class,
+                seat_type
+            )
+        )
+
+        seats = cursor.fetchall()
+
+        if not seats:
+
+            print(
+                "No Available Seats Found."
+            )
+
+            return None
+
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Seat ID",
+            style="bright_yellow"
+        )
+
+        table.add_column(
+            "Seat No.",
+            style="bright_magenta"
+        )
+
+        table.add_column(
+            "Seat Class",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Seat Type",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Status",
+            style="bright_green"
+        )
+
+        for seat in seats:
+
+            table.add_row(
+                str(seat[0]),
+                str(seat[1]),
+                str(seat[2]),
+                str(seat[3]),
+                str(seat[4])
+            )
+
+        console.print(table)
+
+        seat_id = input(
+            "\nEnter Seat ID to Select : "
+        ).strip()
+
+        if not seat_id.isdigit():
+
+            print(
+                "Invalid Seat ID."
+            )
+
+            return None
+
+        seat_id = int(seat_id)
+
+        for seat in seats:
+
+            if seat[0] == seat_id:
+
+                return seat
+
+        print(
+            "Please Select a Seat ID "
+            "From the Displayed Available Seats."
+        )
+
+        return None
+
+    except Exception as e:
+
+        print(
+            f"Error while selecting seat: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# 6. BOOK TICKET
+# ============================================================
+
+def book_ticket():
+
+    heading("BOOK TICKET")
+
+    try:
+
+        # ----------------------------------------------------
+        # STEP 1 : SELECT PASSENGER
+        # ----------------------------------------------------
+
+        print("Step 1 : Select Passenger")
+
+        passenger_id = search_passenger()
+
+        if passenger_id is None:
+
             return
 
-        flight_id = input("Enter Flight ID: ").strip()
+        # ----------------------------------------------------
+        # STEP 2 : SELECT FLIGHT
+        # ----------------------------------------------------
 
-        cursor.execute("""
-            SELECT total_seats
-            FROM flights
-            WHERE flight_id = ?
-        """, (flight_id,))
+        print("\nStep 2 : Select Flight")
+
+        flight_id = search_flight()
+
+        if flight_id is None:
+
+            return
+
+        # ----------------------------------------------------
+        # GET FLIGHT DETAILS
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            SELECT
+                f.flight_id,
+                f.flight_number,
+
+                source.airport_name,
+                source.city,
+
+                destination.airport_name,
+                destination.city,
+
+                f.departure_date,
+                f.departure_time,
+
+                f.fare,
+                f.available_seats
+
+            FROM flights f
+
+            JOIN airports source
+                ON f.source_airport_id =
+                   source.airport_id
+
+            JOIN airports destination
+                ON f.destination_airport_id =
+                   destination.airport_id
+
+            WHERE f.flight_id = ?
+            """,
+            (flight_id,)
+        )
 
         flight = cursor.fetchone()
 
-        if flight is None:
-            print("Flight ID not found.")
+        if not flight:
+
+            print(
+                "Flight Not Found."
+            )
+
             return
 
-        seat_no = input("Enter Seat Number: ").strip().upper()
+        if flight[9] <= 0:
 
-        cursor.execute("""
-            SELECT booking_id
-            FROM bookings
-            WHERE flight_id = ?
-            AND seat_no = ?
-            AND status IN ('Pending', 'Confirmed')
-        """, (flight_id, seat_no))
+            print(
+                "No Seats Available on This Flight."
+            )
 
-        if cursor.fetchone():
-            print("Seat is already booked.")
             return
 
-        booking_date = datetime.now().strftime("%Y-%m-%d")
+        # ----------------------------------------------------
+        # STEP 3 : SELECT SEAT CLASS
+        # ----------------------------------------------------
 
-        cursor.execute("""
+        print("\nStep 3 : Select Seat Class")
+
+        seat_class = select_seat_class(
+            flight_id
+        )
+
+        if seat_class is None:
+
+            return
+
+        # ----------------------------------------------------
+        # STEP 4 : SELECT SEAT TYPE
+        # ----------------------------------------------------
+
+        print("\nStep 4 : Select Seat Type")
+
+        seat_type = select_seat_type(
+            flight_id,
+            seat_class
+        )
+
+        if seat_type is None:
+
+            return
+
+        # ----------------------------------------------------
+        # STEP 5 : SELECT SEAT
+        # ----------------------------------------------------
+
+        print("\nStep 5 : Select Seat")
+
+        selected_seat = select_seat(
+            flight_id,
+            seat_class,
+            seat_type
+        )
+
+        if selected_seat is None:
+
+            return
+
+        seat_id = selected_seat[0]
+        seat_no = selected_seat[1]
+
+        # ----------------------------------------------------
+        # BOOKING SUMMARY
+        # ----------------------------------------------------
+
+        heading("BOOKING SUMMARY")
+
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Field",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Details",
+            style="white"
+        )
+
+        table.add_row(
+            "Passenger ID",
+            str(passenger_id)
+        )
+
+        table.add_row(
+            "Flight Number",
+            str(flight[1])
+        )
+
+        table.add_row(
+            "Source",
+            f"{flight[2]} ({flight[3]})"
+        )
+
+        table.add_row(
+            "Destination",
+            f"{flight[4]} ({flight[5]})"
+        )
+
+        table.add_row(
+            "Departure Date",
+            str(flight[6])
+        )
+
+        table.add_row(
+            "Departure Time",
+            str(flight[7])
+        )
+
+        table.add_row(
+            "Seat Number",
+            str(seat_no)
+        )
+
+        table.add_row(
+            "Seat Class",
+            str(seat_class)
+        )
+
+        table.add_row(
+            "Seat Type",
+            str(seat_type)
+        )
+
+        table.add_row(
+            "Fare",
+            str(flight[8])
+        )
+
+        console.print(table)
+
+        # ----------------------------------------------------
+        # CONFIRM BOOKING
+        # ----------------------------------------------------
+
+        confirm = input(
+            "\nConfirm Booking (Y/N) : "
+        ).strip().upper()
+
+        if confirm != "Y":
+
+            print(
+                "Booking Cancelled by User."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # CURRENT DATE
+        # Only booking_date is used
+        # ----------------------------------------------------
+
+        booking_date = datetime.now().strftime(
+            "%Y-%m-%d"
+        )
+
+        # ----------------------------------------------------
+        # START TRANSACTION
+        # ----------------------------------------------------
+
+        conn.execute("BEGIN")
+
+        # ----------------------------------------------------
+        # CHECK SELECTED SEAT
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            SELECT seat_id
+            FROM seats
+            WHERE seat_id = ?
+            AND flight_id = ?
+            AND seat_status = 'Available'
+            """,
+            (
+                seat_id,
+                flight_id
+            )
+        )
+
+        if not cursor.fetchone():
+
+            conn.rollback()
+
+            print(
+                "Booking Failed. "
+                "Selected Seat is No Longer Available."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # INSERT BOOKING
+        # booking_time REMOVED
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
             INSERT INTO bookings
             (
                 passenger_id,
                 flight_id,
+                seat_id,
                 booking_date,
-                seat_no,
                 status
             )
             VALUES (?, ?, ?, ?, ?)
-        """, (
-            passenger_id,
-            flight_id,
-            booking_date,
-            seat_no,
-            "Pending"
-        ))
+            """,
+            (
+                passenger_id,
+                flight_id,
+                seat_id,
+                booking_date,
+                "Confirmed"
+            )
+        )
 
-        # Get generated booking ID
         booking_id = cursor.lastrowid
-        print("booking id:",booking_id)
+
+        # ----------------------------------------------------
+        # UPDATE SEAT STATUS
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            UPDATE seats
+
+            SET seat_status = 'Booked'
+
+            WHERE seat_id = ?
+
+            AND flight_id = ?
+
+            AND seat_status = 'Available'
+            """,
+            (
+                seat_id,
+                flight_id
+            )
+        )
+
+        if cursor.rowcount == 0:
+
+            conn.rollback()
+
+            print(
+                "Booking Failed. "
+                "Seat Could Not Be Reserved."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # DECREASE AVAILABLE SEATS
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            UPDATE flights
+
+            SET available_seats =
+                available_seats - 1
+
+            WHERE flight_id = ?
+
+            AND available_seats > 0
+            """,
+            (flight_id,)
+        )
+
+        if cursor.rowcount == 0:
+
+            conn.rollback()
+
+            print(
+                "Booking Failed. "
+                "No Available Seats."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # SAVE CHANGES
+        # ----------------------------------------------------
+
         conn.commit()
 
-        heading("BOOKING SUCCESSFUL")
+        # ----------------------------------------------------
+        # BOOKING CONFIRMED
+        # ----------------------------------------------------
 
-        print("Booking ID :", booking_id)
-        print("Passenger ID :", passenger_id)
-        print("Flight ID :", flight_id)
-        print("Seat Number :", seat_no)
-        print("Booking Date :", booking_date)
-        print("Status : Pending")
-        print("Please complete the payment to confirm your booking.")
+        heading("BOOKING CONFIRMED")
 
-     except Exception as e:
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Field",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Details"
+        )
+
+        table.add_row(
+            "Booking ID",
+            str(booking_id)
+        )
+
+        table.add_row(
+            "Passenger ID",
+            str(passenger_id)
+        )
+
+        table.add_row(
+            "Flight Number",
+            str(flight[1])
+        )
+
+        table.add_row(
+            "Source",
+            f"{flight[2]} ({flight[3]})"
+        )
+
+        table.add_row(
+            "Destination",
+            f"{flight[4]} ({flight[5]})"
+        )
+
+        table.add_row(
+            "Seat Number",
+            str(seat_no)
+        )
+
+        table.add_row(
+            "Seat Class",
+            str(seat_class)
+        )
+
+        table.add_row(
+            "Seat Type",
+            str(seat_type)
+        )
+
+        table.add_row(
+            "Booking Date",
+            booking_date
+        )
+
+        table.add_row(
+            "Booking Status",
+            "Confirmed"
+        )
+
+        console.print(table)
+
+        print(
+            "\nTicket Booked Successfully.\n to confirmed your booking please confirm payment"
+            
+        )
+
+    except Exception as e:
+
         conn.rollback()
-        print("Error :", e)
-    # 4.2 VIEW BOOKING
-    def view_booking(self):
-        while True:
-            try:
-                heading("VIEW BOOKING")
-                print("1. View All Bookings")
-                print("2. View by Booking ID")
-                print("3. View by Passenger ID")
-                print("4. Back")
-                ch = int(input("Enter choice: "))
 
-                match ch:
-                    case 1: self.view_all_bookings()
-                    case 2: self.view_by_booking_id()
-                    case 3: self.view_by_passenger_id()
-                    case 4: break
-                    case _: print("Invalid Choice")
-            except ValueError:
-                print("Error: Please enter a valid number")
+        print(
+            f"Error while booking ticket: {e}"
+        )
 
-    def view_all_bookings(self):
-        try:
-            heading("VIEW ALL BOOKINGS")
-            cursor.execute("SELECT * FROM bookings")
-            rows = cursor.fetchall()
-            if rows:
-                headers = ["BookingID", "PassengerID", "FlightID", "DATE", "SEAT NO", "Status"]
-                print(tabulate(rows, headers=headers, tablefmt="pretty")) # TABULATE
-            else:
-                print("No bookings found")
-        except Exception as e:
-            print("Database Error:", e)
 
-    def view_by_booking_id(self):
-        try:
-            heading("CANCEL BOOKING BY ID")
-            bid = input("Enter Booking ID: ").strip()
-            cursor.execute("SELECT * FROM bookings WHERE booking_id=?", (bid,))
-            result = cursor.fetchone()
-            if result:
-                headers = ["BookingID", "PassengerID", "FlightID", "Date", "SeatNo", "Status"]
-                print(tabulate([result], headers=headers, tablefmt="grid"))
-            else:
-                print("Booking not found")
-        except Exception as e:
-            print("Database Error:", e)
+# ============================================================
+# 7. VIEW BOOKING
+# ============================================================
 
-    def view_by_passenger_id(self):
-        try:
-            heading(" VIEW BOOKINGS BY PASSENGER ID ")
-            pid = input("Enter Passenger ID: ").strip()
-            cursor.execute("SELECT * FROM bookings WHERE passenger_id=?", (pid,))
-            rows = cursor.fetchall()
-            if rows:
-                headers = ["BookingID", "PassengerID", "FlightID", "Date", "SeatNo", "Status"]
-                print(tabulate(rows, headers=headers, tablefmt="grid"))
-            else:
-                print("No bookings found for this passenger")
-        except Exception as e:
-            print("Database Error:", e)
+def view_booking():
 
-    # 4.3 CANCEL BOOKING
-    def cancel_booking(self):
-        while True:
-            try:
-                heading("CANCEL BOOKING")
-                print("1. Cancel by Booking ID")
-                print("2. Cancel by Passenger ID")
-                print("3. Back")
-                ch = int(input("Enter choice: "))
+    heading("VIEW BOOKING")
 
-                match ch:
-                    case 1: self.cancel_by_booking_id()
-                    case 2: self.cancel_by_passenger_id()
-                    case 3: break
-                    case _: print("Invalid choice")
-            except ValueError:
-                print("Error: Please enter a valid number")
+    booking_id = input(
+        "Enter Booking ID : "
+    ).strip()
 
-    def cancel_by_booking_id(self):
-        try:
-            heading("CANCEL BOOKING BY ID")
-            bid = input("Enter Booking ID: ")
-            cursor.execute("SELECT flight_id FROM bookings WHERE booking_id=? AND status='Confirmed'", (bid,))
-            data = cursor.fetchone()
-            if not data:
-                print("Booking not found or already cancelled")
-                return
-            flight_id = data[0]
-            cursor.execute("UPDATE bookings SET status='Cancelled' WHERE booking_id=?", (bid,))
-            cursor.execute("UPDATE flights SET available_seats = available_seats + 1 WHERE flight_id=?", (flight_id,))
-            conn.commit()
-            print("Booking Cancelled Successfully")
-        except Exception as e:
-            conn.rollback()
-            print("Database Error:", e)
+    if not booking_id.isdigit():
 
-    def cancel_by_passenger_id(self):
-        try:
-         heading("CANCEL BOOKING")
+        print(
+            "Invalid Booking ID."
+        )
 
-         pid = input("Enter Passenger ID: ")
-         fid = input("Enter Flight ID: ")
+        return
 
-        # Check if booking exists for this passenger and flight
-         cursor.execute("""
-            SELECT status
-            FROM bookings
-            WHERE passenger_id=? AND flight_id=?
-         """, (pid, fid))
+    try:
 
-         booking = cursor.fetchone()
+        cursor.execute(
+            """
+            SELECT
+                b.booking_id,
+                p.passenger_name,
+                p.phone,
+                f.flight_number,
 
-         if booking is None:
-            print("Flight is not present for this passenger.")
+                source.airport_name,
+                source.city,
+
+                destination.airport_name,
+                destination.city,
+
+                f.departure_date,
+                f.departure_time,
+
+                s.seat_no,
+                s.seat_class,
+                s.seat_type,
+
+                f.fare,
+
+                b.booking_date,
+                b.status
+
+            FROM bookings b
+
+            JOIN passengers p
+                ON b.passenger_id =
+                   p.passenger_id
+
+            JOIN flights f
+                ON b.flight_id =
+                   f.flight_id
+
+            JOIN seats s
+                ON b.seat_id =
+                   s.seat_id
+
+            JOIN airports source
+                ON f.source_airport_id =
+                   source.airport_id
+
+            JOIN airports destination
+                ON f.destination_airport_id =
+                   destination.airport_id
+
+            WHERE b.booking_id = ?
+            """,
+            (int(booking_id),)
+        )
+
+        booking = cursor.fetchone()
+
+        if not booking:
+
+            print(
+                "Booking Not Found."
+            )
+
             return
 
-         if booking[0] == "Cancelled":
-            print("Booking is already cancelled.")
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Field",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Details"
+        )
+
+        table.add_row(
+            "Booking ID",
+            str(booking[0])
+        )
+
+        table.add_row(
+            "Passenger",
+            str(booking[1])
+        )
+
+        table.add_row(
+            "Phone",
+            str(booking[2])
+        )
+
+        table.add_row(
+            "Flight",
+            str(booking[3])
+        )
+
+        table.add_row(
+            "Source",
+            f"{booking[4]} ({booking[5]})"
+        )
+
+        table.add_row(
+            "Destination",
+            f"{booking[6]} ({booking[7]})"
+        )
+
+        table.add_row(
+            "Departure Date",
+            str(booking[8])
+        )
+
+        table.add_row(
+            "Departure Time",
+            str(booking[9])
+        )
+
+        table.add_row(
+            "Seat Number",
+            str(booking[10])
+        )
+
+        table.add_row(
+            "Seat Class",
+            str(booking[11])
+        )
+
+        table.add_row(
+            "Seat Type",
+            str(booking[12])
+        )
+
+        table.add_row(
+            "Fare",
+            str(booking[13])
+        )
+
+        table.add_row(
+            "Booking Date",
+            str(booking[14])
+        )
+
+        table.add_row(
+            "Booking Status",
+            str(booking[15])
+        )
+
+        console.print(table)
+
+    except Exception as e:
+
+        print(
+            f"Error while viewing booking: {e}"
+        )
+
+
+# ============================================================
+# 8. CANCEL BOOKING
+# ============================================================
+
+def cancel_booking():
+
+    heading("CANCEL BOOKING")
+
+    booking_id = input(
+        "Enter Booking ID : "
+    ).strip()
+
+    if not booking_id.isdigit():
+
+        print(
+            "Invalid Booking ID."
+        )
+
+        return
+
+    booking_id = int(booking_id)
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                b.booking_id,
+                p.passenger_name,
+                f.flight_number,
+
+                source.city,
+                destination.city,
+
+                f.departure_date,
+                f.departure_time,
+
+                b.flight_id,
+
+                s.seat_id,
+                s.seat_no,
+                s.seat_class,
+                s.seat_type,
+
+                f.fare,
+                b.status
+
+            FROM bookings b
+
+            JOIN passengers p
+                ON b.passenger_id =
+                   p.passenger_id
+
+            JOIN flights f
+                ON b.flight_id =
+                   f.flight_id
+
+            JOIN seats s
+                ON b.seat_id =
+                   s.seat_id
+
+            JOIN airports source
+                ON f.source_airport_id =
+                   source.airport_id
+
+            JOIN airports destination
+                ON f.destination_airport_id =
+                   destination.airport_id
+
+            WHERE b.booking_id = ?
+            """,
+            (booking_id,)
+        )
+
+        booking = cursor.fetchone()
+
+        if not booking:
+
+            print(
+                "Booking Not Found."
+            )
+
             return
 
-        # Cancel booking
-         cursor.execute("""
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Field",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Details"
+        )
+
+        table.add_row(
+            "Booking ID",
+            str(booking[0])
+        )
+
+        table.add_row(
+            "Passenger",
+            str(booking[1])
+        )
+
+        table.add_row(
+            "Flight",
+            str(booking[2])
+        )
+
+        table.add_row(
+            "Source",
+            str(booking[3])
+        )
+
+        table.add_row(
+            "Destination",
+            str(booking[4])
+        )
+
+        table.add_row(
+            "Departure Date",
+            str(booking[5])
+        )
+
+        table.add_row(
+            "Departure Time",
+            str(booking[6])
+        )
+
+        table.add_row(
+            "Seat Number",
+            str(booking[9])
+        )
+
+        table.add_row(
+            "Seat Class",
+            str(booking[10])
+        )
+
+        table.add_row(
+            "Seat Type",
+            str(booking[11])
+        )
+
+        table.add_row(
+            "Fare",
+            str(booking[12])
+        )
+
+        table.add_row(
+            "Booking Status",
+            str(booking[13])
+        )
+
+        console.print(table)
+
+        if booking[13].lower() == "cancelled":
+
+            print(
+                "This Booking is Already Cancelled."
+            )
+
+            return
+
+        confirm = input(
+            "\nAre You Sure You Want To "
+            "Cancel This Booking? (Y/N) : "
+        ).strip().upper()
+
+        if confirm != "Y":
+
+            print(
+                "Cancellation Process Stopped."
+            )
+
+            return
+
+        conn.execute("BEGIN")
+
+        # ----------------------------------------------------
+        # UPDATE BOOKING STATUS
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
             UPDATE bookings
-            SET status='Cancelled'
-            WHERE passenger_id=? AND flight_id=?
-         """, (pid, fid))
 
-        # Increase available seats
-         cursor.execute("""
+            SET
+                status = ?,
+                cancellation_reason = ?
+
+            WHERE booking_id = ?
+            """,
+            (
+                "Cancelled",
+                "Passenger requested cancellation",
+                booking_id
+            )
+        )
+
+        # ----------------------------------------------------
+        # RETURN SEAT
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
+            UPDATE seats
+
+            SET seat_status = 'Available'
+
+            WHERE seat_id = ?
+
+            AND flight_id = ?
+
+            AND seat_status = 'Booked'
+            """,
+            (
+                booking[8],
+                booking[7]
+            )
+        )
+
+        if cursor.rowcount == 0:
+
+            conn.rollback()
+
+            print(
+                "Cancellation Failed. "
+                "Seat Could Not Be Released."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # INCREASE AVAILABLE SEATS
+        # ----------------------------------------------------
+
+        cursor.execute(
+            """
             UPDATE flights
-            SET available_seats = available_seats + 1
-            WHERE flight_id=?
-         """, (fid,))
 
-         conn.commit()
-         print("Booking cancelled successfully.")
+            SET available_seats =
+                available_seats + 1
 
-        except Exception as e:
-         conn.rollback()
-         print("Database Error:", e)
+            WHERE flight_id = ?
+            """,
+            (booking[7],)
+        )
 
-    # 4.4 BOOKING HISTORY
-    def booking_history(self):
-        while True:
-            try:
-                heading("BOOKING HISTORY")
-                print("1. Passenger Booking History")
-                print("2. Flight Booking History")
-                print("3. Back")
-                ch = int(input("Enter choice: "))
+        # ----------------------------------------------------
+        # SAVE CHANGES
+        # ----------------------------------------------------
 
-                match ch:
-                    case 1: self.passenger_booking_history()
-                    case 2: self.flight_booking_history()
-                    case 3: break
-                    case _: print("Invalid choice")
-            except ValueError:
-                print("Error: Please enter a valid number")
+        conn.commit()
 
-    def passenger_booking_history(self):
-        try:
-            heading("PASSENGER BOOKING HISTORY")
-            pid = input("Enter Passenger ID: ").strip()
-            cursor.execute("SELECT * FROM bookings WHERE passenger_id=?", (pid,))
-            rows = cursor.fetchall()
-            if rows:
-                headers = ["BookingID", "PassengerID", "FlightID", "SeatNo", "Date", "Status"]
-                print(tabulate(rows, headers=headers, tablefmt="github")) # TABULATE
-            else:
-                print("No history found")
-        except Exception as e:
-            print("Database Error:", e)
+        print(
+            "\nBooking Cancelled Successfully."
+        )
 
-    def flight_booking_history(self):
-        try:
-            heading("FLIGHT BOOKING HISTORY")
-            fid = input("Enter Flight ID: ").strip()
-            cursor.execute("SELECT * FROM bookings WHERE flight_id=?", (fid,))
-            rows = cursor.fetchall()
-            if rows:
-                headers = ["BookingID", "PassengerID", "FlightID", "SeatNo", "Date", "Status"]
-                print(tabulate(rows, headers=headers, tablefmt="github"))
-            else:
-                print("No history found")
-        except Exception as e:
-            print("Database Error:", e)
+    except Exception as e:
+
+        conn.rollback()
+
+        print(
+            f"Error while cancelling booking: {e}"
+        )
+
+
+# ============================================================
+# 9. BOOKING HISTORY
+# ============================================================
+
+def booking_history():
+
+    heading("BOOKING HISTORY")
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT
+                b.booking_id,
+                p.passenger_name,
+                f.flight_number,
+
+                source.city,
+                destination.city,
+
+                s.seat_no,
+                s.seat_class,
+                s.seat_type,
+
+                b.booking_date,
+                b.status
+
+            FROM bookings b
+
+            JOIN passengers p
+                ON b.passenger_id =
+                   p.passenger_id
+
+            JOIN flights f
+                ON b.flight_id =
+                   f.flight_id
+
+            JOIN seats s
+                ON b.seat_id =
+                   s.seat_id
+
+            JOIN airports source
+                ON f.source_airport_id =
+                   source.airport_id
+
+            JOIN airports destination
+                ON f.destination_airport_id =
+                   destination.airport_id
+
+            ORDER BY
+                b.booking_id DESC
+            """
+        )
+
+        bookings = cursor.fetchall()
+
+        if not bookings:
+
+            print(
+                "No Booking History Found."
+            )
+
+            return
+
+        table = Table(
+            show_header=True,
+            show_lines=True,
+            padding=(0, 2),
+            expand=False
+        )
+
+        table.add_column(
+            "Booking ID",
+            style="bright_yellow"
+        )
+
+        table.add_column(
+            "Passenger",
+            style="bright_cyan"
+        )
+
+        table.add_column(
+            "Flight",
+            style="bright_green"
+        )
+
+        table.add_column("Source")
+        table.add_column("Destination")
+
+        table.add_column(
+            "Seat",
+            style="bright_magenta"
+        )
+
+        table.add_column("Class")
+        table.add_column("Type")
+        table.add_column("Booking Date")
+
+        table.add_column(
+            "Status",
+            style="bright_green"
+        )
+
+        for booking in bookings:
+
+            table.add_row(
+                str(booking[0]),
+                str(booking[1]),
+                str(booking[2]),
+                str(booking[3]),
+                str(booking[4]),
+                str(booking[5]),
+                str(booking[6]),
+                str(booking[7]),
+                str(booking[8]),
+                str(booking[9])
+            )
+
+        console.print(table)
+
+    except Exception as e:
+
+        print(
+            f"Error while fetching booking history: {e}"
+        )
+
+
+# ============================================================
+# 10. BOOKING MANAGEMENT MENU
+# Menu is plain text
+# Only heading is colored
+# ============================================================
+
+def booking_management():
+
+    while True:
+
+        heading("BOOKING MANAGEMENT")
+
+        print("1  Book Ticket")
+        print("2  View Booking")
+        print("3  Cancel Booking")
+        print("4  Booking History")
+        print("5  Back")
+
+        print()
+
+        choice = input(
+            "Enter Your Choice : "
+        ).strip()
+
+        if choice == "1":
+
+            book_ticket()
+
+        elif choice == "2":
+
+            view_booking()
+
+        elif choice == "3":
+
+            cancel_booking()
+
+        elif choice == "4":
+
+            booking_history()
+
+        elif choice == "5":
+
+            break
+
+        else:
+
+            print(
+                "Invalid Choice. Please Try Again."
+            )
+
+
+# ============================================================
+# RUN MODULE DIRECTLY
+# ============================================================
 
 if __name__ == "__main__":
-# Main Menu
- obj=BookingManagement()
- obj.main()
+
+    try:
+
+        booking_management()
+
+    finally:
+
+        conn.close()
